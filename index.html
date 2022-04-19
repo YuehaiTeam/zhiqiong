@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>志琼</title>
+        <style>
+            html,
+            body {
+                margin: 0;
+                overflow: hidden;
+                font-size: 100px;
+            }
+        </style>
+        <link rel="stylesheet" href="css/style.css" />
+        <script>
+            var _hmt = _hmt || [];
+            (function () {
+                var hm = document.createElement('script');
+                hm.src = 'https://hm.baidu.com/hm.js?acfdfc4daaea0bba08e436daece9c487';
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(hm, s);
+            })();
+        </script>
+    </head>
+    <body>
+        <iframe id="mysmap"></iframe>
+        <div class="form-main">
+            <form id="inpform">
+                <img src="https://webstatic.mihoyo.com/ys/app/interactive-map/mapicon.png" alt="共享地图" />
+                <h1>志琼·原神地图</h1>
+                <div class="pc-view">
+                    <div class="splitline"><span>电脑使用</span></div>
+                    <div class="list">
+                        <div class="a">
+                            <svg class="icon" viewBox="0 0 1024 1024">
+                                <path
+                                    d="M490.666667 128v362.666667H128V128h362.666667z m0 768H128v-362.666667h362.666667V896z m42.666666-768H896v362.666667h-362.666667V128z m362.666667 405.333333V896h-362.666667v-362.666667H896z"
+                                ></path>
+                            </svg>
+                            <a class="btn inv" href="https://77.cocogoat.work/v1/ascension/zhiqiong/zhiqiong-1.0.5.exe">
+                                Game Bar 悬浮窗
+                            </a>
+                        </div>
+                        <div class="a">
+                            <svg class="icon" viewBox="0 0 1024 1024">
+                                <path
+                                    d="M963.84 268.96C881.74 108.36 704.52 16 511.82 16 274.1 16 75.02 183.36 26.94 407.32c52-92.98 172.44-158.28 298.92-158.28 158.54 0 242.18 97.86 244.5 100.36 44 47.6 66 100.78 66 166.2 0 20.8-10.62 51.64-30.22 77.14-3.14 4-12.78 9.68-12.78 22 0 10.12 6.58 19.84 18.28 28 55.72 38.74 160.74 33.62 161.02 33.62A230.78 230.78 0 0 0 889.88 644a237.84 237.84 0 0 0 117.9-204.88c1-86.86-31-144.6-43.94-170.16zM425.54 951.34a309.76 309.76 0 0 1-93.28-90c-65.88-94.84-68.48-191.2-40.2-272A311 311 0 0 1 406 431.5c118-90.4 189.68-11.3 198.12-2a160 160 0 0 0-9.78-20.28c-18.48-31.86-48-72.82-113.12-107.02-67.44-35.38-141.18-37.18-155.28-37.18-77.42 0-155.8 26-215.06 71.38C71.36 366.6 25.54 417.44 17.2 486c-2.16 24.62-5.5 125.6 46 236.54a496 496 0 0 0 496.6 283.22c-76.24-13.24-131.7-53.28-134.26-54.42z m501.44-196.66a15.52 15.52 0 0 0-15.84-0.46 363.32 363.32 0 0 1-40.82 18.24 395.08 395.08 0 0 1-139.1 25.04c-183.34 0-343.04-126.12-343.04-288a122.24 122.24 0 0 1 13.04-53.5 337.44 337.44 0 0 0-77.52 100c-29.84 58.74-66 176.26 26.66 303.32 13.02 17.82 46 60 112 95.34 47.14 25.3 98 39.22 143.4 39.22 70.28 0 230.86-66.88 326-217.74a15.5 15.5 0 0 0-4.78-21.46z"
+                                ></path>
+                            </svg>
+                            <a class="btn inv" href="/sharedmap.user.js"> 安装油猴脚本 </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="mobile-view">
+                    <div class="splitline"><span>远程连接</span></div>
+                    <div class="input-box">
+                        <input type="text" id="input" maxlength="9" minlength="9" placeholder="九位连接码" />
+                        <button class="btn" id="btn">连接共享地图</button>
+                    </div>
+                </div>
+                <div class="copyright">&copy;2022 YuehaiTeam & WeiXiTianLi</div>
+            </form>
+        </div>
+        <div class="map-loading">
+            <div class="map-loading-mask"></div>
+            <div class="map-loading-container">
+                <img
+                    src="https://webstatic.mihoyo.com/ys/app/interactive-map/images/paimon.de7072c3.gif"
+                    class="map-loading-paimon"
+                />
+                <div class="">
+                    <div class="map-loading-text">
+                        <span id="loading-text">正在连接共享地图...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    <script src="https://lib.baomitu.com/eventemitter3/4.0.7/index.min.js"></script>
+    <script src="https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js"></script>
+    <script src="https://lib.baomitu.com/sweetalert/2.1.2/sweetalert.min.js"></script>
+    <script src="/js/ajaxHook.js"></script>
+    <script src="/js/sharedmap.client.js"></script>
+    <script>
+        // add mobile class to body by ua
+        if (/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)) {
+            document.body.classList.add('mobile');
+        } else {
+            document.body.classList.add('pc');
+        }
+        const shareinit = () => {
+            document.querySelector('.map-loading').classList.remove('hide');
+            let shareId = location.hash.split('/s/')[1] || '';
+            if (shareId) {
+                shareId = shareId.substring(0, 9);
+                if (shareId.length === 9) {
+                    connectPeer(shareId)
+                        .then(loadMap)
+                        .catch(() => {
+                            document.querySelector('.map-loading').classList.add('hide');
+                            location.replace('#');
+                        });
+                } else {
+                    swal('错误', '连接码错误', 'error');
+                    document.querySelector('.map-loading').classList.add('hide');
+                    location.replace('#');
+                }
+            } else {
+                document.querySelector('.map-loading').classList.add('hide');
+            }
+        };
+        const input = document.getElementById('input');
+        // auto uppercase
+        input.addEventListener('keyup', () => {
+            input.value = input.value.toUpperCase();
+        });
+        document.getElementById('inpform').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const shareId = input.value;
+            if (shareId.length === 9) {
+                location.replace(`#/s/${shareId}`);
+                shareinit();
+            }
+        });
+        shareinit();
+    </script>
+</html>

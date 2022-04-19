@@ -1,0 +1,338 @@
+@font-face {
+    font-family: '1';
+    src: url('../fonts/1.woff') format('woff');
+    font-style: normal;
+    font-weight: normal;
+}
+
+html,
+body,
+input,
+button {
+    font-family: '1';
+}
+
+.map-loading {
+    z-index: 10;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    opacity: 1;
+    transition: all 0.2s;
+}
+.map-loading.hide {
+    opacity: 0;
+    pointer-events: none;
+}
+.map-loading,
+.map-loading-mask {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.map-loading-mask {
+    background-color: #363d4d;
+}
+
+.map-loading-container {
+    position: relative;
+    width: 2.43rem;
+    height: 1.56rem;
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+}
+
+.map-loading-paimon {
+    position: relative;
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+.map-loading-paimon__static {
+    width: 0.53rem;
+    height: 0.7rem;
+    -webkit-transform: scaleX(-1);
+    -ms-transform: scaleX(-1);
+    transform: scaleX(-1);
+}
+
+.map-loading-progress {
+    position: relative;
+    height: 0.1rem;
+    width: 2.43rem;
+    margin: 0.25rem 0 0.2rem;
+    background-color: gray;
+    background: #2d3340;
+    -webkit-clip-path: polygon(
+        0.05rem 0,
+        calc(100% - 0.05rem) 0,
+        100% 50%,
+        calc(100% - 0.05rem) 100%,
+        0.05rem 100%,
+        0 calc(100% - 0.05rem)
+    );
+    clip-path: polygon(
+        0.05rem 0,
+        calc(100% - 0.05rem) 0,
+        100% 50%,
+        calc(100% - 0.05rem) 100%,
+        0.05rem 100%,
+        0 calc(100% - 0.05rem)
+    );
+}
+
+.map-loading-progress,
+.map-loading-progress-inner {
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+.map-loading-progress-inner {
+    width: 2.39rem;
+    height: 0.07rem;
+    background: #505c73;
+    -webkit-clip-path: polygon(
+        0.035rem 0,
+        calc(100% - 0.035rem) 0,
+        100% 50%,
+        calc(100% - 0.035rem) 100%,
+        0.035rem 100%,
+        0 calc(100% - 0.035rem)
+    );
+    clip-path: polygon(
+        0.035rem 0,
+        calc(100% - 0.035rem) 0,
+        100% 50%,
+        calc(100% - 0.035rem) 100%,
+        0.035rem 100%,
+        0 calc(100% - 0.035rem)
+    );
+}
+
+.map-loading-progress-content {
+    width: 2.38rem;
+    height: 0.06rem;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    background: #2d3340;
+    -webkit-clip-path: polygon(
+        0.03rem 0,
+        calc(100% - 0.03rem) 0,
+        100% 50%,
+        calc(100% - 0.03rem) 100%,
+        0.03rem 100%,
+        0 calc(100% - 0.03rem)
+    );
+    clip-path: polygon(
+        0.03rem 0,
+        calc(100% - 0.03rem) 0,
+        100% 50%,
+        calc(100% - 0.03rem) 100%,
+        0.03rem 100%,
+        0 calc(100% - 0.03rem)
+    );
+}
+
+.map-loading-progress-content--active {
+    height: 100%;
+    background: -webkit-gradient(
+        linear,
+        right top,
+        left top,
+        color-stop(-19.27%, #80ffff),
+        color-stop(193.4%, rgba(128, 255, 255, 0))
+    );
+    background: -webkit-linear-gradient(right, #80ffff -19.27%, rgba(128, 255, 255, 0) 193.4%);
+    background: -o-linear-gradient(right, #80ffff -19.27%, rgba(128, 255, 255, 0) 193.4%);
+    background: linear-gradient(270deg, #80ffff -19.27%, rgba(128, 255, 255, 0) 193.4%);
+}
+
+.map-loading-text {
+    text-align: center;
+    line-height: 0.12rem;
+}
+
+.map-loading-text span {
+    display: inline-block;
+    font-size: 0.12rem;
+    color: #e5e2da;
+}
+
+.map-loading-text .percent {
+    margin-left: 0.19rem;
+}
+
+.form-main {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background-color: #363d4d;
+    color: #fff;
+}
+
+#input {
+    display: block;
+    width: 250px;
+    height: 40px;
+    text-align: center;
+    font-size: 20px;
+    color: #fff;
+    background: transparent;
+    border: 1px solid #7a7a7a;
+    border-radius: 40px;
+    outline: 0;
+}
+
+.btn {
+    height: 40px;
+    border-radius: 30px;
+    width: 100%;
+    border: 0;
+    background: #fff;
+    margin-top: 15px;
+    outline: 0;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    color: #555;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.btn.inv {
+    box-sizing: border-box;
+    border: 1px solid #fff;
+    color: #fff;
+    background: #353d4d;
+}
+
+.form-main img {
+    display: block;
+    margin: 0 auto;
+    margin-bottom: 30px;
+    margin-top: -40px;
+}
+
+#mysmap {
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 0;
+    z-index: 2;
+}
+.install-userjs {
+    margin-top: 80px;
+    text-align: center;
+}
+
+.install-userjs a {
+    color: #aaa;
+}
+.copyright {
+    font-size: 12px;
+    text-align: center;
+    color: #999;
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+}
+.pc-view {
+    margin-top: 50px;
+}
+.list {
+    display: flex;
+    width: 350px;
+    max-width: 100%;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.list .a {
+    width: 150px;
+}
+
+svg.icon {
+    fill: #fff;
+    opacity: 0.9;
+    width: 60px;
+    height: 60px;
+    display: block;
+    margin: 0 auto;
+}
+.input-box {
+    width: 250px;
+    margin: 0 auto;
+    margin-bottom: 80px;
+}
+
+.splitline {
+    text-align: center;
+    position: relative;
+}
+
+.splitline span {
+    background: #363d4d;
+    position: relative;
+    z-index: 2;
+    display: inline-block;
+    padding: 0 5px;
+}
+
+.splitline:after {
+    content: ' ';
+    border-bottom: 1px solid #808080;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 10px;
+}
+.pc-view .splitline {
+    margin-top: -20px;
+    margin-bottom: 40px;
+}
+
+.mobile-view .splitline {
+    margin: 50px 0;
+}
+h1 {
+    text-align: center;
+    font-weight: normal;
+}

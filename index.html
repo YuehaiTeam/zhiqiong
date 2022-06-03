@@ -84,6 +84,7 @@
     <script src="/js/ajaxHook.js"></script>
     <script src="/js/sharedmap.client.js"></script>
     <script>
+        let winload = false;
         // add mobile class to body by ua
         if (/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)) {
             document.body.classList.add('mobile');
@@ -107,8 +108,13 @@
                     document.querySelector('.map-loading').classList.add('hide');
                     location.replace('#');
                 }
+                winload = true;
             } else {
-                document.querySelector('.map-loading').classList.add('hide');
+                if (!winload) {
+                    location.replace('https://cocogoat.work/zhiqiong');
+                } else {
+                    document.querySelector('.map-loading').classList.add('hide');
+                }
             }
         };
         const input = document.getElementById('input');

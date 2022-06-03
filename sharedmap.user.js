@@ -10,7 +10,7 @@
 // @match       https://webstatic-sea.hoyolab.com/ys/app/interactive-map/*
 // @match       https://act.hoyolab.com/ys/app/interactive-map/*
 // @grant       unsafeWindow
-// @version     1.1.3
+// @version     1.1.4
 // @author      YuehaiTeam
 // @description 让你的米游社地图能定位，可共享
 // @description:zh-CN 让你的米游社地图能定位，可共享
@@ -278,6 +278,7 @@
     };
     const dialogClose = () => {
         document.querySelector('.cocogoat-dialog').style.display = 'none';
+        webControlMAP.ev.emit('dialogClose');
     };
     const injectHtml = () => {
         const root = document.createElement('div');
@@ -491,7 +492,7 @@
         remember: uWindow.localStorage['zhiqiong.remember'] || '',
         ws: undefined,
         ev: new mitt(),
-        targetVersion: '1.2.2',
+        targetVersion: '1.2.3',
         versionCompare(a, b) {
             const aParts = a.split('.');
             const bParts = b.split('.');
@@ -512,9 +513,7 @@
             }
             return 0;
         },
-        authorize: async function () {
-            if (this.ws) return;
-            dialogAlert('志琼', '正在连接辅助插件...', false);
+        ping: async function (noerr) {
             const ver = new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.timeout = 1500;
@@ -544,19 +543,57 @@
                         })<br/><a href="https://cocogoat.work/extra/client?utm_source=zhiqiong">${_('点此更新')}</a>`,
                         true,
                     );
-                    return;
+                    return false;
                 }
             } catch (e) {
                 dialogAlert(
                     '志琼',
-                    _('请确认您已下载并运行辅助插件！') +
-                        '<a href="https://cocogoat.work/extra/client?utm_source=zhiqiong">' +
+                    _('正在尝试启动辅助插件') +
+                        '<br/>' +
+                        _('如插件未启动或等待几秒后仍未提示授权') +
+                        '<br/>' +
+                        _('请手动下载并运行辅助插件：') +
+                        '<a target="_blank" href="https://cocogoat.work/extra/client?utm_source=zhiqiong">' +
                         _('点此下载') +
                         '</a>',
                     true,
                 );
                 return false;
             }
+            return true;
+        },
+        authorize: async function () {
+            if (this.ws) return;
+            dialogAlert('志琼', '正在连接辅助插件...', false);
+            let dialogClosed = false;
+            let connected = false;
+            let firstTime = true;
+            const onclose = () => {
+                dialogClosed = true;
+            };
+            this.ev.on('dialogClose', onclose);
+            while (1) {
+                if (dialogClosed) break;
+                if ((connected = await this.ping(firstTime))) break;
+                if (firstTime) {
+                    if (/zhiqiong\-uwp/.test(navigator.userAgent)) {
+                        try {
+                            window.chrome.webview.postMessage({ action: 'PLUGIN', token: '' });
+                            await new Promise((resolve) => setTimeout(resolve, 2000));
+                        } catch (e) {}
+                    } else {
+                        // open url scheme in iframe
+                        const iframe = document.createElement('iframe');
+                        iframe.src = 'cocogoat-control://launch';
+                        iframe.style.display = 'none';
+                        document.body.appendChild(iframe);
+                    }
+                    firstTime = false;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+            this.ev.off('dialogClose', onclose);
+            if (!connected || dialogClosed) return false;
             let res;
             try {
                 res = await fetch('http://localhost:32333/token?remember', {

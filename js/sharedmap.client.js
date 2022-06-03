@@ -47,6 +47,9 @@ ah.proxy({
                 },
             });
             console.log('SharedMap::proxy::' + id, config.url);
+        } else if (config.url.includes('webstatic.hoyoverse.com')) {
+            config.url = config.url.replace('webstatic.hoyoverse.com', 'webstatic.mihoyo.com');
+            handler.next(config);
         } else {
             handler.next(config);
         }
@@ -104,9 +107,9 @@ async function connectPeer(shareId, useTurn = false) {
                     if (!useTurn) {
                         conn.close();
                         peer.destroy();
-                        connectPeer(shareId, true).then((e)=>{
-                            resolve(false)
-                        })
+                        connectPeer(shareId, true).then((e) => {
+                            resolve(false);
+                        });
                     } else {
                         swal({
                             title: '连接失败',
@@ -119,10 +122,11 @@ async function connectPeer(shareId, useTurn = false) {
             });
         });
     });
-    conn && conn.on('data', (data) => {
-        if (!data.action) return;
-        ev.emit(data.id || data.action, data.data);
-    });
+    conn &&
+        conn.on('data', (data) => {
+            if (!data.action) return;
+            ev.emit(data.id || data.action, data.data);
+        });
 }
 async function loadMap() {
     document.querySelector('.map-loading').classList.remove('hide');

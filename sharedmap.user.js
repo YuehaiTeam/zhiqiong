@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        志琼·米游社共享地图
-// @name:zh-CN  志琼·米游社共享地图
-// @name:zh-TW  志琼·米游社共享地圖
+// @name        志琼·原神共享地图
+// @name:zh-CN  志琼·原神共享地图
+// @name:zh-TW  志琼·原神共享地圖
 // @name:en-US  Zhiqiong: Genshin Impact Shared Map
 // @icon        https://webstatic.mihoyo.com/ys/app/interactive-map/mapicon.png
 // @namespace   cocogoat
@@ -9,17 +9,23 @@
 // @match       https://webstatic.mihoyo.com/ys/app/interactive-map/*
 // @match       https://webstatic-sea.hoyolab.com/ys/app/interactive-map/*
 // @match       https://act.hoyolab.com/ys/app/interactive-map/*
+// @match       https://yuanshen.site/index*
 // @grant       unsafeWindow
-// @version     1.1.4
+// @version     1.2.0
 // @author      YuehaiTeam
-// @description 让你的米游社地图能定位，可共享
-// @description:zh-CN 让你的米游社地图能定位，可共享
-// @description:zh-TW 讓你的米游社地圖能定位，可共享
+// @description 让你的米游社地图能定位，可共享(新支持空荧酒馆)
+// @description:zh-CN 让你的米游社地图能定位，可共享(新支持空荧酒馆)
+// @description:zh-TW 讓你的米游社地圖能定位，可共享(新支持空荧酒馆)
 // @description:en-US Show realtime in game location in the Teyvat Interactive Map, in browser and mobile phones!
 // @downloadURL https://zhiqiong.vercel.app/sharedmap.user.js
 // @updateURL   https://zhiqiong.vercel.app/sharedmap.user.js
 // ==/UserScript==
 !(function () {
+    const evsMode = location.host === 'yuanshen.site' && !navigator.userAgent.includes('zhiqiong-uwp');
+    const uWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    uWindow.$map = () => {
+        debugger;
+    };
     const i18n = {
         en: {
             志琼: 'Zhiqiong',
@@ -92,29 +98,359 @@
             };
         };
     });
+    const EventSourceWs = function (to) {
+        const token = to.split('/ws/')[1].split('?')[0];
+        // use eventsource to simulate websocket
+        this.onopen = () => {};
+        this.onmessage = () => {};
+        this.onerror = () => {};
+        this.onclose = () => {};
+        this.send = async (reqjson) => {
+            const req = JSON.parse(reqjson);
+            if (req.action !== 'api') {
+                throw new Error('unsupported action in evs mode');
+            }
+            const id = req.id;
+            const url = req.data.url;
+            const method = req.data.method;
+            const body = req.data.body;
+            const res = await fetch(new URL(url, to.replace('ws', 'http')).toString(), {
+                method: method,
+                body: body,
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: 'Bearer ' + token,
+                },
+            });
+            const resstr = await res.json();
+            this.onmessage({
+                data: JSON.stringify({
+                    id,
+                    action: 'api',
+                    data: {
+                        status: res.status,
+                        body: resstr,
+                    },
+                }),
+            });
+        };
 
+        this.ev = new EventSource(to.replace('ws', 'http'));
+        this.ev.onopen = (e) => {
+            console.log('EVS open');
+            this.onopen(e);
+        };
+        this.ev.onclose = (e) => {
+            console.log('EVS close');
+            this.onclose(e);
+        };
+        this.ev.onerror = (e) => {
+            console.log('EVS error', e);
+            this.onerror(e);
+        };
+        this.ev.onmessage = (e) => {
+            if (e.data === 'reconnect') {
+                console.log('EVS reconnected successfully');
+                return;
+            }
+            this.onmessage(e);
+        };
+    };
+    const WsOrEventSource = () => {
+        if (evsMode) return EventSourceWs;
+        return WebSocket;
+    };
+    const webControlMAP = {
+        token: '',
+        endpoint: {
+            http: 'http://localhost:32333/',
+            ws: 'ws://localhost:32333/ws/',
+            https: 'https://localhost:32332/',
+            wss: 'wss://localhost:32332/ws/',
+        },
+        remember: uWindow.localStorage['zhiqiong.remember'] || '',
+        ws: undefined,
+        ev: new mitt(),
+        targetVersion: evsMode ? '1.2.4' : '1.2.3',
+        versionCompare(a, b) {
+            const aParts = a.split('.');
+            const bParts = b.split('.');
+            const len = Math.max(aParts.length, bParts.length);
+            for (let i = 0; i < len; i++) {
+                const aPart = parseInt(aParts[i], 10);
+                const bPart = parseInt(bParts[i], 10);
+                if (aPart === bPart) {
+                    continue;
+                }
+                if (aPart === undefined) {
+                    return -1;
+                }
+                if (bPart === undefined) {
+                    return 1;
+                }
+                return aPart - bPart > 0 ? 1 : -1;
+            }
+            return 0;
+        },
+        ping: async function (noerr) {
+            const ver = new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.timeout = 1500;
+                xhr.open('GET', evsMode ? this.endpoint.https : this.endpoint.http);
+                xhr.send();
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        resolve(JSON.parse(xhr.responseText));
+                    } else {
+                        reject(new Error(xhr.statusText));
+                    }
+                };
+                xhr.onerror = (e) => {
+                    reject(e);
+                };
+                xhr.ontimeout = () => {
+                    reject(new Error('timeout'));
+                };
+            });
+            try {
+                const v = await ver;
+                if (!v.version || this.versionCompare(v.version, this.targetVersion) < 0) {
+                    dialogAlert(
+                        '志琼',
+                        `${_('辅助插件版本过低')}(${v.version || 'unknown'})<br/>${_('请更新到最新版本')}(${
+                            this.targetVersion
+                        })<br/><a href="https://cocogoat.work/extra/client?utm_source=zhiqiong">${_('点此更新')}</a>`,
+                        true,
+                    );
+                    return false;
+                }
+            } catch (e) {
+                dialogAlert(
+                    '志琼',
+                    _('正在尝试启动辅助插件') +
+                        '<br/>' +
+                        _('如插件未启动或等待几秒后仍未提示授权') +
+                        '<br/>' +
+                        _('请手动下载并运行辅助插件：') +
+                        '<a target="_blank" href="https://cocogoat.work/extra/client?utm_source=zhiqiong">' +
+                        _('点此下载') +
+                        '</a>',
+                    true,
+                );
+                return false;
+            }
+            return true;
+        },
+        authorize: async function () {
+            if (this.ws) return;
+            dialogAlert('志琼', '正在连接辅助插件...', false);
+            let dialogClosed = false;
+            let connected = false;
+            let firstTime = true;
+            const onclose = () => {
+                dialogClosed = true;
+            };
+            this.ev.on('dialogClose', onclose);
+            while (1) {
+                if (dialogClosed) break;
+                if ((connected = await this.ping(firstTime))) break;
+                if (firstTime) {
+                    if (/zhiqiong\-uwp/.test(navigator.userAgent)) {
+                        try {
+                            window.chrome.webview.postMessage({ action: 'PLUGIN', token: '' });
+                            await new Promise((resolve) => setTimeout(resolve, 2000));
+                        } catch (e) {}
+                    } else {
+                        // open url scheme in iframe
+                        const iframe = document.createElement('iframe');
+                        iframe.src = 'cocogoat-control://launch';
+                        iframe.style.display = 'none';
+                        document.body.appendChild(iframe);
+                    }
+                    firstTime = false;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+            }
+            this.ev.off('dialogClose', onclose);
+            if (!connected || dialogClosed) return false;
+            let res;
+            try {
+                const endpoint = evsMode ? this.endpoint.https : this.endpoint.http;
+                res = await fetch(endpoint + 'token?remember', {
+                    method: 'POST',
+                    headers: this.remember ? { Authorization: 'Bearer ' + this.remember } : {},
+                });
+            } catch (e) {
+                dialogAlert('志琼', '申请授权失败', true);
+                return false;
+            }
+            if (!res.ok) return dialogAlert('志琼', '您已拒绝权限申请', true);
+            const data = await res.json();
+            this.token = data.token;
+            if (data.remember) {
+                this.remember = data.remember;
+                uWindow.localStorage['zhiqiong.remember'] = data.remember;
+            }
+            this.ws = new (WsOrEventSource())((evsMode ? this.endpoint.wss : this.endpoint.ws) + this.token);
+            this.ws.onclose = () => {
+                this.ws = undefined;
+                this.ev.addEventListener('close');
+            };
+            this.ws.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                this.ev.emit(data.id || data.action, data.data);
+            };
+            await new Promise((resolve) => (this.ws.onopen = resolve));
+            dialogClose();
+            return true;
+        },
+        wsInvoke(action, ...data) {
+            const body = { action, data };
+            if (!this.ws) throw new Error('WebSocket not connected');
+            const id = Math.round(Date.now() * 1000 + Math.random() * 1000).toString(16);
+            const reqjson = {
+                id,
+                action: 'api',
+                data: {
+                    url: '/api/cvautotrack',
+                    method: 'POST',
+                    body: JSON.stringify(body),
+                },
+            };
+            const resp = new Promise((resolve) => {
+                console.log('wsInvoke ' + action + ' ' + id);
+                this.ev.on(id, resolve);
+            });
+            this.ws.send(JSON.stringify(reqjson));
+            return resp;
+        },
+        formatSize(size) {
+            if (size < 1024) {
+                return size.toFixed(2) + 'B';
+            }
+            if (size < 1024 * 1024) {
+                return (size / 1024).toFixed(2) + 'KB';
+            }
+            if (size < 1024 * 1024 * 1024) {
+                return (size / 1024 / 1024).toFixed(2) + 'MB';
+            }
+            if (size < 1024 * 1024 * 1024 * 1024) {
+                return (size / 1024 / 1024 / 1024).toFixed(2) + 'GB';
+            }
+            return (size / 1024 / 1024 / 1024 / 1024).toFixed(2) + 'TB';
+        },
+        async mapDownload() {
+            dialogAlert('志琼', '开始检查更新', false);
+            document.querySelector('.cocogoat-dialog .progress').style.display = 'block';
+            const pgbar = document.querySelector('.cocogoat-dialog .progress-in');
+            const dlres = await webControlMAP.wsInvoke('update');
+            console.log('webcontrol::MAP::download', dlres.body.msg);
+            let lastDownloaded = 0;
+            while (1) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
+                const { body } = await webControlMAP.wsInvoke('progress');
+                const {
+                    msg,
+                    data: [downloaded, total],
+                } = body;
+                const msgmap = {
+                    started: '正在检查更新...[0]',
+                    prechecking: '正在检查更新...[1]',
+                    prehashing: '正在检查更新...[2]',
+                    prechecksum: '正在检查更新...[3]',
+                    downloading: '正在下载更新...',
+                    checksum: '正在校验更新...',
+                    done: '即将完成',
+                    noupdate: '没有更新',
+                };
+                let pgtext = '';
+                if (total > 0) {
+                    const speed = (downloaded - lastDownloaded) / (100 / 1000);
+                    // size and percent
+                    pgtext = `${this.formatSize(total)} ${Math.floor((downloaded / total) * 100)}% ${this.formatSize(
+                        speed,
+                    )}/s`;
+                    pgbar.style.width = `${Math.floor((downloaded / total) * 100)}%`;
+                    lastDownloaded = downloaded;
+                }
+                dialogAlert('志琼', _(msgmap[msg] || msg) + pgtext, !msgmap[msg]);
+                if (msg === 'done' || msg === 'noupdate') break;
+            }
+            dialogAlert('志琼', '组件加载中', false);
+            document.querySelector('.cocogoat-dialog .progress').style.display = 'none';
+        },
+        async mapInit() {
+            dialogAlert('志琼', '准备检查更新', false);
+            await this.mapDownload();
+            dialogAlert('志琼', '组件加载中', false);
+            let load_res = await webControlMAP.wsInvoke('load');
+            console.log('webcontrol::MAP::load', load_res.body.msg);
+            if (load_res.body.msg !== 'loaded')
+                return dialogAlert('志琼', _('跟踪地图加载失败！') + '<br>' + load_res.body.msg, true);
+            dialogAlert('志琼', '跟踪地图初始化', false);
+            const d = await webControlMAP.wsInvoke('init');
+            console.log('webcontrol::MAP::init', d.body.status);
+            if (d.body.status === false) return dialogAlert('志琼', '跟踪地图初始化失败！', true);
+            dialogAlert('志琼', '跟踪地图初始化成功', false);
+            setTimeout(async () => {
+                dialogAlert('志琼', '等待地图数据', false);
+                const r3 = await webControlMAP.wsInvoke('sub');
+                console.log('webcontrol::MAP::sub', r3.body.status);
+                const a = () => {
+                    dialogClose();
+                    this.ev.off('cvautotrack', a);
+                };
+                this.ev.on('cvautotrack', a);
+            }, 500);
+        },
+    };
     let vue, main, map, markers, drawnItems, icon, COCOGOAT_USER_MARKER;
-    const uWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    let isPinned = true,
+        isDragging = false;
     const load = () => {
-        document.body.appendChild(document.createElement('script')).src =
-            'https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js';
-        localStorage['user-guide-passed'] = true;
-        localStorage['async-announcement-hidden-ts'] = Date.now() + 9999;
-        let initInterval = setInterval(() => {
-            vue = document.querySelector('#root')?.__vue__;
-            main = vue?.$children[0];
-            map = main?.$children[0]?.$children[0]?.map || main?.$children[0]?.map;
-            markers = main?.$children[0]?.$children[0]?.markerList || main?.$children[0]?.markerList;
-            if (!vue || !main || !map || !markers || !markers.length || (!window.Peer && !uWindow.Peer)) return;
-            init();
-            clearInterval(initInterval);
-        }, 500);
+        if (location.host === 'yuanshen.site') {
+            (async function () {
+                await fetch('https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js')
+                    .then((e) => e.text())
+                    .then((e) => uWindow.eval(e));
+                const mysMapUtil = await fetch('https://77.cocogoat.work/upgrade/kyjgmaptpl.html').then((e) =>
+                    e.text(),
+                );
+                const mhyuldiv = document.createElement('section');
+                mhyuldiv.innerHTML = mysMapUtil;
+                mhyuldiv.style.display = 'none';
+                mhyuldiv.id = 'zhiqiong-mysmap-util';
+                document.body.appendChild(mhyuldiv);
+                let initInterval = setInterval(() => {
+                    map = uWindow.map;
+                    if (!map || (!window.Peer && !uWindow.Peer)) return;
+                    init();
+                    clearInterval(initInterval);
+                }, 500);
+            })();
+        } else {
+            document.body.appendChild(document.createElement('script')).src =
+                'https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js';
+            localStorage['user-guide-passed'] = true;
+            localStorage['async-announcement-hidden-ts'] = Date.now() + 9999;
+            let initInterval = setInterval(() => {
+                vue = document.querySelector('#root')?.__vue__;
+                main = vue?.$children[0];
+                map = main?.$children[0]?.$children[0]?.map || main?.$children[0]?.map;
+                markers = main?.$children[0]?.$children[0]?.markerList || main?.$children[0]?.markerList;
+                if (!vue || !main || !map || !markers || !markers.length || (!window.Peer && !uWindow.Peer)) return;
+                init();
+                clearInterval(initInterval);
+            }, 500);
+        }
     };
     if (document.readyState === 'complete') load();
     uWindow.addEventListener('load', load);
     const init = () => {
+        uWindow.$map.map = map;
         insertStyle();
         injectHtml();
+        setPinned(true);
         drawUserIcon();
         send('init', null);
         uWindow.webControlMAP = webControlMAP;
@@ -131,7 +467,7 @@
     --dir:0deg;
     --rot:0deg;
 }
-.cocogoat-activated .cocogoat-user-position{
+.cocogoat-activated .cocogoat-user-position {
     display:block;
 }
 .cocogoat-user-position:before{
@@ -182,16 +518,59 @@
 .route-list.route-list--mobile-detail {
     border-top-right-radius: 0;
 }
-.cocogoat-more {
+.cocogoat-actions {
     position: absolute;
-    bottom: .2rem;
-    left: .2rem;
+    bottom: 20px;
+    left: 20px;
+    z-index:99999999;
+    margin-bottom: -10px;
 }
 
-.cocogoat-more svg {
+.cocogoat-actions svg {
     width: 80%;
     fill: #ece5d8;
 }
+
+.cocogoat-actions .cocogoat-pin {
+    display:none;
+}
+
+.cocogoat-actions .cocogoat-share {
+    display:none;
+    position:relative;
+}
+
+.cocogoat-activated .cocogoat-actions .cocogoat-pin {
+    display:flex;
+}
+
+.cocogoat-activated .cocogoat-actions .cocogoat-more {
+    display:none;
+}
+
+.cocogoat-activated .cocogoat-actions .cocogoat-share {
+    display:flex;
+}
+
+.cocogoat-actions .cocogoat-share-dot {
+    display:none;
+    position: absolute;
+    background: #ff9605;
+    color: #fff;
+    padding: 1px 4px;
+    font-size: 12px;
+    border-radius: 3px;
+    top: -6px;
+    right: -6px;
+}
+.cocogoat-actions .cocogoat-active .cocogoat-share-dot {
+    display:block;
+}
+
+.cocogoat-actions .cocogoat-active svg {
+    fill:#ffc107;
+}
+
 .cocogoat-dialog .updatelog {
     height: 2rem;
 }
@@ -280,6 +659,14 @@
         document.querySelector('.cocogoat-dialog').style.display = 'none';
         webControlMAP.ev.emit('dialogClose');
     };
+    const setPinned = (p) => {
+        isPinned = p;
+        if (isPinned) {
+            document.querySelector('.cocogoat-pin').classList.add('cocogoat-active');
+        } else {
+            document.querySelector('.cocogoat-pin').classList.remove('cocogoat-active');
+        }
+    };
     const injectHtml = () => {
         const root = document.createElement('div');
         root.id = 'cocogoat-root';
@@ -289,17 +676,30 @@
         const utmsrc = (navigator.userAgent.match(/zhiqiong-dim\/([a-zA-Z0-9]*)/) || [])[1] || 'browser';
         const utmver = (navigator.userAgent.match(/zhiqiong-uwp\/([0-9.]*)/) || [])[1] || '0.0.0.0';
         root.innerHTML = `
-    <div class="mhy-map__action-btn cocogoat-more">
-        <svg viewBox="0 0 204 204" class="v-icon cocogoat"><g><path d=" M 92.79 59.13 C 94.98 55.32 98.53 52.56 101.92 49.88 C 105.14 52.74 108.92 55.30 111.02 59.15 C 110.63 62.49 107.80 65.92 104.21 65.83 C 101.15 65.86 97.27 66.68 95.10 63.91 C 93.97 62.56 92.73 60.98 92.79 59.13 Z"></path><path d=" M 82.38 54.26 C 82.72 54.23 83.41 54.17 83.76 54.14 C 86.77 57.18 89.10 60.84 92.29 63.72 C 93.95 65.58 96.89 67.68 95.57 70.52 C 93.68 75.27 90.04 79.03 87.26 83.27 C 85.94 84.91 84.25 87.99 81.72 86.52 C 79.39 83.07 77.68 79.20 75.02 75.95 C 73.64 73.84 70.87 71.42 72.69 68.75 C 75.49 63.69 78.35 58.47 82.38 54.26 Z"></path><path d=" M 119.11 54.95 C 120.87 52.96 122.79 55.72 123.89 57.04 C 126.97 61.41 130.22 65.85 132.00 70.92 C 128.93 76.45 124.76 81.37 121.83 87.03 C 121.20 86.96 119.95 86.83 119.33 86.77 C 116.16 82.55 113.06 78.28 110.00 73.99 C 108.50 71.78 106.78 68.39 109.16 66.15 C 112.65 62.58 116.01 58.89 119.11 54.95 Z"></path><path d=" M 51.82 63.56 C 58.70 63.02 64.12 67.97 68.08 72.99 C 72.28 77.62 75.21 83.19 78.32 88.57 C 80.70 92.48 79.50 97.42 81.68 101.44 C 84.44 88.13 95.06 78.87 101.41 67.39 C 103.21 69.06 104.59 71.10 105.93 73.15 C 111.83 81.55 119.56 89.46 121.42 99.94 C 121.88 99.79 122.79 99.50 123.25 99.35 C 123.62 95.93 123.59 92.31 125.30 89.22 C 129.75 80.82 134.83 72.41 142.47 66.52 C 145.21 64.40 148.62 63.50 152.06 63.57 C 150.18 68.18 148.61 72.98 148.91 78.04 C 148.87 91.80 143.22 105.66 132.73 114.74 C 129.22 118.10 124.49 120.51 122.54 125.21 C 127.83 124.55 132.04 121.10 136.38 118.32 C 145.39 112.57 154.03 106.14 161.79 98.78 C 167.77 93.07 171.20 85.51 174.16 77.96 C 176.45 77.74 177.07 80.44 178.09 81.97 C 181.72 88.26 181.50 95.83 180.67 102.81 C 179.03 109.41 175.27 115.68 169.55 119.51 C 161.87 124.32 153.00 127.10 143.98 127.83 C 140.96 128.00 137.94 128.52 135.19 129.85 C 136.01 134.37 136.26 139.44 133.24 143.26 C 129.03 150.23 118.48 151.96 112.25 146.74 C 108.03 143.08 106.71 137.40 103.80 132.82 C 102.28 133.14 100.11 132.48 99.28 134.22 C 96.79 138.38 95.66 143.53 91.73 146.71 C 87.38 150.49 80.82 150.55 75.80 148.14 C 72.69 146.31 70.33 143.26 68.96 139.95 C 67.64 136.66 68.75 133.04 68.04 129.67 C 65.75 128.01 62.69 128.23 60.02 127.83 C 51.21 127.21 42.64 124.39 35.05 119.91 C 28.95 116.19 24.96 109.66 23.29 102.82 C 22.58 95.83 22.21 88.24 25.83 81.92 C 26.84 80.41 27.51 77.79 29.76 77.99 C 31.70 81.87 32.72 86.19 35.15 89.83 C 41.41 100.09 51.57 106.93 61.00 113.98 C 67.60 117.93 73.49 123.71 81.26 125.19 C 79.42 120.47 74.79 118.01 71.24 114.75 C 60.50 105.43 54.82 91.11 55.06 76.99 C 55.35 72.26 53.43 67.89 51.82 63.56 M 72.72 129.22 C 72.52 135.00 78.56 138.93 83.85 138.62 C 87.70 138.20 90.56 135.35 93.11 132.70 C 87.27 128.33 79.61 128.62 72.72 129.22 M 110.90 132.29 C 112.59 134.55 114.51 136.81 117.21 137.86 C 123.13 140.54 131.06 135.91 131.17 129.27 C 124.29 128.39 117.05 128.76 110.90 132.29 Z"></path></g></svg>
+    
+    <div class="cocogoat-actions">
+        <div class="mhy-map__action-btn cocogoat-pin">
+            <svg viewBox="0 0 1024 1024"><path d="M176 478.208l275.328 91.733333c1.28 0.426667 2.261333 1.408 2.688 2.688l91.733333 275.328a4.266667 4.266667 0 0 0 7.978667 0.341334l279.381333-651.861334a4.266667 4.266667 0 0 0-5.589333-5.589333L175.658667 470.186667a4.266667 4.266667 0 0 0 0.341333 7.978666z"></path></svg>
+        </div>
+        <div class="mhy-map__action-btn cocogoat-more">
+            <svg viewBox="0 0 204 204" class="v-icon cocogoat"><g><path d=" M 92.79 59.13 C 94.98 55.32 98.53 52.56 101.92 49.88 C 105.14 52.74 108.92 55.30 111.02 59.15 C 110.63 62.49 107.80 65.92 104.21 65.83 C 101.15 65.86 97.27 66.68 95.10 63.91 C 93.97 62.56 92.73 60.98 92.79 59.13 Z"></path><path d=" M 82.38 54.26 C 82.72 54.23 83.41 54.17 83.76 54.14 C 86.77 57.18 89.10 60.84 92.29 63.72 C 93.95 65.58 96.89 67.68 95.57 70.52 C 93.68 75.27 90.04 79.03 87.26 83.27 C 85.94 84.91 84.25 87.99 81.72 86.52 C 79.39 83.07 77.68 79.20 75.02 75.95 C 73.64 73.84 70.87 71.42 72.69 68.75 C 75.49 63.69 78.35 58.47 82.38 54.26 Z"></path><path d=" M 119.11 54.95 C 120.87 52.96 122.79 55.72 123.89 57.04 C 126.97 61.41 130.22 65.85 132.00 70.92 C 128.93 76.45 124.76 81.37 121.83 87.03 C 121.20 86.96 119.95 86.83 119.33 86.77 C 116.16 82.55 113.06 78.28 110.00 73.99 C 108.50 71.78 106.78 68.39 109.16 66.15 C 112.65 62.58 116.01 58.89 119.11 54.95 Z"></path><path d=" M 51.82 63.56 C 58.70 63.02 64.12 67.97 68.08 72.99 C 72.28 77.62 75.21 83.19 78.32 88.57 C 80.70 92.48 79.50 97.42 81.68 101.44 C 84.44 88.13 95.06 78.87 101.41 67.39 C 103.21 69.06 104.59 71.10 105.93 73.15 C 111.83 81.55 119.56 89.46 121.42 99.94 C 121.88 99.79 122.79 99.50 123.25 99.35 C 123.62 95.93 123.59 92.31 125.30 89.22 C 129.75 80.82 134.83 72.41 142.47 66.52 C 145.21 64.40 148.62 63.50 152.06 63.57 C 150.18 68.18 148.61 72.98 148.91 78.04 C 148.87 91.80 143.22 105.66 132.73 114.74 C 129.22 118.10 124.49 120.51 122.54 125.21 C 127.83 124.55 132.04 121.10 136.38 118.32 C 145.39 112.57 154.03 106.14 161.79 98.78 C 167.77 93.07 171.20 85.51 174.16 77.96 C 176.45 77.74 177.07 80.44 178.09 81.97 C 181.72 88.26 181.50 95.83 180.67 102.81 C 179.03 109.41 175.27 115.68 169.55 119.51 C 161.87 124.32 153.00 127.10 143.98 127.83 C 140.96 128.00 137.94 128.52 135.19 129.85 C 136.01 134.37 136.26 139.44 133.24 143.26 C 129.03 150.23 118.48 151.96 112.25 146.74 C 108.03 143.08 106.71 137.40 103.80 132.82 C 102.28 133.14 100.11 132.48 99.28 134.22 C 96.79 138.38 95.66 143.53 91.73 146.71 C 87.38 150.49 80.82 150.55 75.80 148.14 C 72.69 146.31 70.33 143.26 68.96 139.95 C 67.64 136.66 68.75 133.04 68.04 129.67 C 65.75 128.01 62.69 128.23 60.02 127.83 C 51.21 127.21 42.64 124.39 35.05 119.91 C 28.95 116.19 24.96 109.66 23.29 102.82 C 22.58 95.83 22.21 88.24 25.83 81.92 C 26.84 80.41 27.51 77.79 29.76 77.99 C 31.70 81.87 32.72 86.19 35.15 89.83 C 41.41 100.09 51.57 106.93 61.00 113.98 C 67.60 117.93 73.49 123.71 81.26 125.19 C 79.42 120.47 74.79 118.01 71.24 114.75 C 60.50 105.43 54.82 91.11 55.06 76.99 C 55.35 72.26 53.43 67.89 51.82 63.56 M 72.72 129.22 C 72.52 135.00 78.56 138.93 83.85 138.62 C 87.70 138.20 90.56 135.35 93.11 132.70 C 87.27 128.33 79.61 128.62 72.72 129.22 M 110.90 132.29 C 112.59 134.55 114.51 136.81 117.21 137.86 C 123.13 140.54 131.06 135.91 131.17 129.27 C 124.29 128.39 117.05 128.76 110.90 132.29 Z"></path></g></svg>
+        </div>
+        <div class="mhy-map__action-btn cocogoat-share">
+            <svg viewBox="0 0 1024 1024">
+                <path d="M262.4 262.4l115.2 0 0 115.2-115.2 0 0-115.2Z"></path>
+                <path d="M262.4 646.4l115.2 0 0 115.2-115.2 0 0-115.2Z"></path>
+                <path d="M646.4 262.4l115.2 0 0 115.2-115.2 0 0-115.2Z"></path>
+                <path d="M806.4 806.4l-115.2 0 0 57.6 115.2 0c32 0 57.6-25.6 57.6-57.6l0-57.6-57.6 0L806.4 806.4z"></path>
+                <path d="M160 217.6l0 262.4 320 0 0-320L217.6 160C185.6 160 160 185.6 160 217.6zM422.4 422.4 217.6 422.4 217.6 217.6l204.8 0L422.4 422.4z" p-id="2905"></path><path d="M160 806.4c0 32 25.6 57.6 57.6 57.6l262.4 0 0-320-320 0L160 806.4zM217.6 601.6l204.8 0 0 204.8L217.6 806.4 217.6 601.6z" p-id="2906"></path><path d="M544 544l204.8 0 0 57.6-204.8 0 0-57.6Z" p-id="2907"></path><path d="M691.2 627.2 627.2 627.2 627.2 691.2 691.2 691.2 691.2 748.8 748.8 748.8 748.8 691.2 864 691.2 864 627.2 748.8 627.2Z" p-id="2908"></path><path d="M544 748.8l57.6 0 0 115.2-57.6 0 0-115.2Z" p-id="2909"></path><path d="M627.2 748.8l57.6 0 0 57.6-57.6 0 0-57.6Z" p-id="2910"></path><path d="M544 627.2l57.6 0 0 57.6-57.6 0 0-57.6Z" p-id="2911"></path><path d="M806.4 544l57.6 0 0 57.6-57.6 0 0-57.6Z" p-id="2912"></path><path d="M806.4 160 544 160l0 320 320 0L864 217.6C864 185.6 838.4 160 806.4 160zM806.4 422.4 601.6 422.4 601.6 217.6l204.8 0L806.4 422.4z"></path>
+            </svg>
+            <div class="cocogoat-share-dot">0</div>
+        </div>
     </div>
     <div class="cocogoat-dialog">
         ${uldom.body.innerHTML}
     </div>
-    <iframe class="cocogoat-trackfrm" src=${`https://zhiqiong.vercel.app/tracker?utm_source=${utmsrc}${
-        utmver !== '0.0.0.0' ? '&utm_medium=' + utmver : ''
-    }`}></iframe>
 `;
-        document.querySelector('.mhy-game-gis').appendChild(root);
+        (document.querySelector('.mhy-game-gis') || document.body).appendChild(root);
         document.querySelector('.cocogoat-dialog .updatelog__content-text').innerHTML = `
     <div>
     <div class="text">处理中</div>
@@ -310,15 +710,42 @@
 `;
         document.querySelector('.cocogoat-dialog .updatelog__close').addEventListener('click', dialogClose);
         document.querySelector('.cocogoat-more').addEventListener('click', async (e) => {
-            if (webControlMAP.ws) return sharedMap.init();
+            if (webControlMAP.ws) return;
             if (!(await webControlMAP.authorize())) return;
             await webControlMAP.mapInit();
             webControlMAP.ev.off('cvautotrack', mapOnPos);
             webControlMAP.ev.on('cvautotrack', mapOnPos);
+            webControlMAP.ev.off('close');
+            webControlMAP.ev.on('close', () => {
+                document.querySelector('.cocogoat-more').classList.remove('cocogoat-active--webcontrol');
+            });
         });
+        document.querySelector('.cocogoat-pin').addEventListener('click', () => {
+            setPinned(!isPinned);
+        });
+        document.querySelector('.cocogoat-share').addEventListener('click', () => {
+            if (webControlMAP.ws) sharedMap.init();
+        });
+
+        const trackFrame = document.createElement('iframe');
+        trackFrame.style.display = 'none';
+        if (location.host === 'yuanshen.site') {
+            fetch('https://77.cocogoat.work/upgrade/kyjgtrackfrm.html')
+                .then((e) => e.text())
+                .then((e) => {
+                    trackFrame.srcdoc = e;
+                    document.body.appendChild(trackFrame);
+                });
+        } else {
+            trackFrame.src = `https://zhiqiong.vercel.app/tracker?utm_source=${utmsrc}${
+                utmver !== '0.0.0.0' ? '&utm_medium=' + utmver : ''
+            }`;
+        }
+        document.body.appendChild(trackFrame);
     };
     const mapOnPos = (pos) => {
         document.body.classList.add('cocogoat-activated');
+        document.querySelector('.cocogoat-more').classList.add('cocogoat-active');
         if (pos.length === 5) {
             pos.reverse();
             const succ = pos.shift();
@@ -331,13 +758,25 @@
                     dialogClose();
                 }
             }
-            pos[0] = (pos[0] + 5890) / 2;
-            pos[1] = (pos[1] - 2285) / 2;
-            COCOGOAT_USER_MARKER.setLatLng(pos);
-            COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
-            COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
-            map.setView(pos);
-            sharedMap.onmap([...pos, dir, rot]);
+            if (location.host === 'yuanshen.site') {
+                const apos = [];
+                apos[0] = (pos[0] + 5890) / 2;
+                apos[1] = (pos[1] - 2285) / 2;
+                pos.reverse();
+                COCOGOAT_USER_MARKER.setLatLng(pos);
+                COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
+                COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
+                if (isPinned) map.setView(pos);
+                sharedMap.onmap([...apos, dir, rot]);
+            } else {
+                pos[0] = (pos[0] + 5890) / 2;
+                pos[1] = (pos[1] - 2285) / 2;
+                COCOGOAT_USER_MARKER.setLatLng(pos);
+                COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
+                COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
+                if (isPinned) map.setView(pos);
+                sharedMap.onmap([...pos, dir, rot]);
+            }
         }
     };
     const drawUserIcon = () => {
@@ -347,7 +786,43 @@
             className: 'cocogoat-user-position',
         });
         COCOGOAT_USER_MARKER = L.marker([0, 0], { icon: COCOGOAT_USER_ICON }).addTo(map);
-        COCOGOAT_USER_MARKER.setRotationOrigin('center');
+        try {
+            COCOGOAT_USER_MARKER.setRotationOrigin('center');
+        } catch (e) {}
+        // listen for drag
+        let tmpDragging = -1;
+        let tmpMousePos = [0, 0];
+        map.addEventListener('mousedown', (e) => {
+            if (!webControlMAP.ws) return;
+            tmpDragging = Date.now();
+            tmpMousePos = [e.originalEvent.clientX, e.originalEvent.clientY];
+        });
+        map._container.addEventListener('touchstart', (e) => {
+            tmpDragging = Date.now();
+            tmpMousePos = [e.touches[0].clientX, e.touches[0].clientY];
+        });
+        map.addEventListener('mouseup', (e) => {
+            if (!webControlMAP.ws) return;
+            tmpDragging = -1;
+        });
+        map._container.addEventListener('touchend', (e) => {
+            tmpDragging = -1;
+        });
+        map.addEventListener('mousemove', (e) => {
+            if (tmpDragging > 0 && Date.now() - tmpDragging > 100) {
+                const nowMousePos = [e.originalEvent.clientX, e.originalEvent.clientY];
+                const diff = [Math.abs(nowMousePos[0] - tmpMousePos[0]), Math.abs(nowMousePos[1] - tmpMousePos[1])];
+                if (diff[0] > 20 || diff[1] > 20) setPinned(false);
+            }
+        });
+        map._container.addEventListener('touchmove', (e) => {
+            if (tmpDragging > 0 && Date.now() - tmpDragging > 100) {
+                // check pos
+                const nowMousePos = [e.touches[0].clientX, e.touches[0].clientY];
+                const diff = [Math.abs(nowMousePos[0] - tmpMousePos[0]), Math.abs(nowMousePos[1] - tmpMousePos[1])];
+                if (diff[0] > 20 || diff[1] > 20) setPinned(false);
+            }
+        });
     };
     function send(event, data) {
         if (parent && uWindow !== parent) {
@@ -449,6 +924,8 @@
             this.conn.forEach((e) => e.send(msg));
         },
         show() {
+            document.querySelector('.cocogoat-share').classList.add('cocogoat-active');
+            document.querySelector('.cocogoat-share-dot').innerHTML = this.conn.length;
             const k = this.peerId.replace('cocogoat-shared-map-', '');
             const url = `https://zhiqiong.vercel.app/#/s/${k}`;
             const qrUrl = `https://www.lofter.com/genBitmaxImage?url=${encodeURIComponent(url)}`;
@@ -461,7 +938,7 @@
         <div class="share-text">
             ${_('扫码连接共享地图，或打开')}
             <br>
-            https://zhiqiong.vercel.app
+            https://cocogoat.work/zhiqiong
             <br>
             ${_('输入分享码')} <code>${k}</code>
         </div>
@@ -487,245 +964,12 @@
             return (k1 + k2).substr(0, 9);
         },
     };
-    const webControlMAP = {
-        token: '',
-        remember: uWindow.localStorage['zhiqiong.remember'] || '',
-        ws: undefined,
-        ev: new mitt(),
-        targetVersion: '1.2.3',
-        versionCompare(a, b) {
-            const aParts = a.split('.');
-            const bParts = b.split('.');
-            const len = Math.max(aParts.length, bParts.length);
-            for (let i = 0; i < len; i++) {
-                const aPart = parseInt(aParts[i], 10);
-                const bPart = parseInt(bParts[i], 10);
-                if (aPart === bPart) {
-                    continue;
-                }
-                if (aPart === undefined) {
-                    return -1;
-                }
-                if (bPart === undefined) {
-                    return 1;
-                }
-                return aPart - bPart > 0 ? 1 : -1;
-            }
-            return 0;
-        },
-        ping: async function (noerr) {
-            const ver = new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.timeout = 1500;
-                xhr.open('GET', 'http://localhost:32333/');
-                xhr.send();
-                xhr.onload = () => {
-                    if (xhr.status === 200) {
-                        resolve(JSON.parse(xhr.responseText));
-                    } else {
-                        reject(new Error(xhr.statusText));
-                    }
-                };
-                xhr.onerror = (e) => {
-                    reject(e);
-                };
-                xhr.ontimeout = () => {
-                    reject(new Error('timeout'));
-                };
-            });
-            try {
-                const v = await ver;
-                if (!v.version || this.versionCompare(v.version, this.targetVersion) < 0) {
-                    dialogAlert(
-                        '志琼',
-                        `${_('辅助插件版本过低')}(${v.version || 'unknown'})<br/>${_('请更新到最新版本')}(${
-                            this.targetVersion
-                        })<br/><a href="https://cocogoat.work/extra/client?utm_source=zhiqiong">${_('点此更新')}</a>`,
-                        true,
-                    );
-                    return false;
-                }
-            } catch (e) {
-                dialogAlert(
-                    '志琼',
-                    _('正在尝试启动辅助插件') +
-                        '<br/>' +
-                        _('如插件未启动或等待几秒后仍未提示授权') +
-                        '<br/>' +
-                        _('请手动下载并运行辅助插件：') +
-                        '<a target="_blank" href="https://cocogoat.work/extra/client?utm_source=zhiqiong">' +
-                        _('点此下载') +
-                        '</a>',
-                    true,
-                );
-                return false;
-            }
-            return true;
-        },
-        authorize: async function () {
-            if (this.ws) return;
-            dialogAlert('志琼', '正在连接辅助插件...', false);
-            let dialogClosed = false;
-            let connected = false;
-            let firstTime = true;
-            const onclose = () => {
-                dialogClosed = true;
-            };
-            this.ev.on('dialogClose', onclose);
-            while (1) {
-                if (dialogClosed) break;
-                if ((connected = await this.ping(firstTime))) break;
-                if (firstTime) {
-                    if (/zhiqiong\-uwp/.test(navigator.userAgent)) {
-                        try {
-                            window.chrome.webview.postMessage({ action: 'PLUGIN', token: '' });
-                            await new Promise((resolve) => setTimeout(resolve, 2000));
-                        } catch (e) {}
-                    } else {
-                        // open url scheme in iframe
-                        const iframe = document.createElement('iframe');
-                        iframe.src = 'cocogoat-control://launch';
-                        iframe.style.display = 'none';
-                        document.body.appendChild(iframe);
-                    }
-                    firstTime = false;
-                }
-                await new Promise((resolve) => setTimeout(resolve, 2000));
-            }
-            this.ev.off('dialogClose', onclose);
-            if (!connected || dialogClosed) return false;
-            let res;
-            try {
-                res = await fetch('http://localhost:32333/token?remember', {
-                    method: 'POST',
-                    headers: this.remember ? { Authorization: 'Bearer ' + this.remember } : {},
-                });
-            } catch (e) {
-                dialogAlert('志琼', '申请授权失败', true);
-                return false;
-            }
-            if (!res.ok) return dialogAlert('志琼', '您已拒绝权限申请', true);
-            const data = await res.json();
-            this.token = data.token;
-            if (data.remember) {
-                this.remember = data.remember;
-                uWindow.localStorage['zhiqiong.remember'] = data.remember;
-            }
-            this.ws = new WebSocket('ws://localhost:32333/ws/' + this.token);
-            this.ws.onclose = () => {
-                this.ws = undefined;
-            };
-            this.ws.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                this.ev.emit(data.id || data.action, data.data);
-            };
-            await new Promise((resolve) => (this.ws.onopen = resolve));
-            dialogClose();
-            return true;
-        },
-        wsInvoke(action, ...data) {
-            const body = { action, data };
-            if (!this.ws) throw new Error('WebSocket not connected');
-            const id = Math.round(Date.now() * 1000 + Math.random() * 1000).toString(16);
-            const reqjson = {
-                id,
-                action: 'api',
-                data: {
-                    url: '/api/cvautotrack',
-                    method: 'POST',
-                    body: JSON.stringify(body),
-                },
-            };
-            const resp = new Promise((resolve) => {
-                this.ev.on(id, resolve);
-            });
-            this.ws.send(JSON.stringify(reqjson));
-            return resp;
-        },
-        formatSize(size) {
-            if (size < 1024) {
-                return size.toFixed(2) + 'B';
-            }
-            if (size < 1024 * 1024) {
-                return (size / 1024).toFixed(2) + 'KB';
-            }
-            if (size < 1024 * 1024 * 1024) {
-                return (size / 1024 / 1024).toFixed(2) + 'MB';
-            }
-            if (size < 1024 * 1024 * 1024 * 1024) {
-                return (size / 1024 / 1024 / 1024).toFixed(2) + 'GB';
-            }
-            return (size / 1024 / 1024 / 1024 / 1024).toFixed(2) + 'TB';
-        },
-        async mapDownload() {
-            dialogAlert('志琼', '开始检查更新', false);
-            document.querySelector('.cocogoat-dialog .progress').style.display = 'block';
-            const pgbar = document.querySelector('.cocogoat-dialog .progress-in');
-            const dlres = await webControlMAP.wsInvoke('update');
-            console.log('webcontrol::MAP::download', dlres.body.msg);
-            let lastDownloaded = 0;
-            while (1) {
-                await new Promise((resolve) => setTimeout(resolve, 100));
-                const { body } = await webControlMAP.wsInvoke('progress');
-                const {
-                    msg,
-                    data: [downloaded, total],
-                } = body;
-                const msgmap = {
-                    started: '正在检查更新...[0]',
-                    prechecking: '正在检查更新...[1]',
-                    prehashing: '正在检查更新...[2]',
-                    prechecksum: '正在检查更新...[3]',
-                    downloading: '正在下载更新...',
-                    checksum: '正在校验更新...',
-                    done: '即将完成',
-                    noupdate: '没有更新',
-                };
-                let pgtext = '';
-                if (total > 0) {
-                    const speed = (downloaded - lastDownloaded) / (100 / 1000);
-                    // size and percent
-                    pgtext = `${this.formatSize(total)} ${Math.floor((downloaded / total) * 100)}% ${this.formatSize(
-                        speed,
-                    )}/s`;
-                    pgbar.style.width = `${Math.floor((downloaded / total) * 100)}%`;
-                    lastDownloaded = downloaded;
-                }
-                dialogAlert('志琼', _(msgmap[msg] || msg) + pgtext, !msgmap[msg]);
-                if (msg === 'done' || msg === 'noupdate') break;
-            }
-            dialogAlert('志琼', '组件加载中', false);
-            document.querySelector('.cocogoat-dialog .progress').style.display = 'none';
-        },
-        async mapInit() {
-            dialogAlert('志琼', '准备检查更新', false);
-            await this.mapDownload();
-            dialogAlert('志琼', '组件加载中', false);
-            let load_res = await webControlMAP.wsInvoke('load');
-            console.log('webcontrol::MAP::load', load_res.body.msg);
-            if (load_res.body.msg !== 'loaded')
-                return dialogAlert('志琼', _('跟踪地图加载失败！') + '<br>' + load_res.body.msg, true);
-            dialogAlert('志琼', '跟踪地图初始化', false);
-            const d = await webControlMAP.wsInvoke('init');
-            console.log('webcontrol::MAP::init', d.body.status);
-            if (d.body.status === false) return dialogAlert('志琼', '跟踪地图初始化失败！', true);
-            dialogAlert('志琼', '跟踪地图初始化成功', false);
-            setTimeout(async () => {
-                dialogAlert('志琼', '等待地图数据', false);
-                const r3 = await webControlMAP.wsInvoke('sub');
-                console.log('webcontrol::MAP::sub', r3.body.status);
-                const a = () => {
-                    dialogClose();
-                    this.ev.off('cvautotrack', a);
-                };
-                this.ev.on('cvautotrack', a);
-            }, 500);
-        },
-    };
-    uWindow.$map = () => {
-        debugger;
-    };
     uWindow.$map.share = sharedMap;
     uWindow.$map.control = webControlMAP;
+    uWindow.$map.pin = (p) => {
+        if (p === undefined || p === null) return isPinned;
+        setPinned(p);
+        return isPinned;
+    };
     uWindow.webControlMAP = webControlMAP;
 })();

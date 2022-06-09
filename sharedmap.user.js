@@ -6,22 +6,28 @@
 // @icon        https://webstatic.mihoyo.com/ys/app/interactive-map/mapicon.png
 // @namespace   cocogoat
 // @antifeature tracking
+// @run-at      document-start
 // @match       https://webstatic.mihoyo.com/ys/app/interactive-map/*
-// @match       https://webstatic-sea.hoyolab.com/ys/app/interactive-map/*
 // @match       https://act.hoyolab.com/ys/app/interactive-map/*
 // @match       https://yuanshen.site/index*
+// @match       https://yuanshen.site/*.dll*
+// @match       https://static-web.ghzs.com/cspage_pro/yuanshenMap*
 // @grant       unsafeWindow
-// @version     1.2.0
+// @version     1.2.3
 // @author      YuehaiTeam
-// @description 让你的米游社地图能定位，可共享(新支持空荧酒馆)
-// @description:zh-CN 让你的米游社地图能定位，可共享(新支持空荧酒馆)
-// @description:zh-TW 讓你的米游社地圖能定位，可共享(新支持空荧酒馆)
-// @description:en-US Show realtime in game location in the Teyvat Interactive Map, in browser and mobile phones!
+// @description 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
+// @description:zh-CN 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
+// @description:zh-TW 讓你的原神地圖能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
+// @description:en-US Show realtime in game location in the Teyvat Interactive Map, in browser and mobile phones!Support Hoyolab Interactive map, yuanshen.site and ghzs.com.
 // @downloadURL https://zhiqiong.vercel.app/sharedmap.user.js
 // @updateURL   https://zhiqiong.vercel.app/sharedmap.user.js
 // ==/UserScript==
-!(function () {
-    const evsMode = location.host === 'yuanshen.site' && !navigator.userAgent.includes('zhiqiong-uwp');
+function _zhiqiong_main() {
+    const S_MAP_TPL = 'https://cocogoat-1251105598.file.myqcloud.com/77/static/zhiqiong/maptpl.html';
+    const S_TRK_FRM = 'https://cocogoat-1251105598.file.myqcloud.com/77/static/zhiqiong/trkfrm.html';
+    const S_TURNLST = 'https://cocogoat-1251105598.file.myqcloud.com/77/v1/utils/turn';
+    const S_UPD_PLU = 'https://cocogoat.work/extra/client?utm_source=zhiqiong';
+    const C_PEER_JS = 'https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js';
     const uWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     uWindow.$map = () => {
         debugger;
@@ -57,9 +63,31 @@
             台设备已连接: ' device(s) connected',
             '扫码连接共享地图，或打开': 'Scan QR code to connect to the shared map, or open',
             输入分享码: 'Input connection code',
+            正在尝试启动辅助插件: 'Trying to launch helper plugin',
+            如插件未启动或等待几秒后仍未提示授权: "If the plugin didn't show up in a few minutes",
+            '请手动下载并运行辅助插件：': 'Please run it maunally : ',
         },
     };
+    let site = location.host;
+    if (uWindow._zhiqiong_frame) {
+        site = parent.location.host;
+    }
     let lang = (new URL(location.href).searchParams.get('lang') || navigator.language).split('-')[0];
+    if (site === 'yuanshen.site') {
+        try {
+            lang = location.pathname.split('index_')[1].split('.')[0];
+        } catch (e) {}
+    }
+    if (uWindow._zhiqiong_frame) {
+        lang = (new URL(parent.location.href).searchParams.get('lang') || navigator.language).split('-')[0];
+    }
+    const evsMode = !!(
+        document.querySelector('meta[http-equiv=Content-Security-Policy]') ||
+        document.querySelector('meta[http-equiv=content-security-Policy]')
+    );
+    if (evsMode) {
+        console.log('Zhiqiong: CSP detected.');
+    }
     const _ = (s) => {
         return i18n[lang] ? i18n[lang][s] || s : s;
     };
@@ -98,6 +126,14 @@
             };
         };
     });
+    const uuid = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            var r = (Math.random() * 16) | 0,
+                v = c == 'x' ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+        });
+    };
+    /* EVS deprecated for too much bug in cocogoat-control */
     const EventSourceWs = function (to) {
         const token = to.split('/ws/')[1].split('?')[0];
         // use eventsource to simulate websocket
@@ -161,7 +197,8 @@
         return WebSocket;
     };
     const webControlMAP = {
-        token: '',
+        token: uuid(),
+        version: '0.0.0',
         endpoint: {
             http: 'http://localhost:32333/',
             ws: 'ws://localhost:32333/ws/',
@@ -219,11 +256,12 @@
                         '志琼',
                         `${_('辅助插件版本过低')}(${v.version || 'unknown'})<br/>${_('请更新到最新版本')}(${
                             this.targetVersion
-                        })<br/><a href="https://cocogoat.work/extra/client?utm_source=zhiqiong">${_('点此更新')}</a>`,
+                        })<br/><a href="${S_UPD_PLU}">${_('点此更新')}</a>`,
                         true,
                     );
                     return false;
                 }
+                this.version = v.version;
             } catch (e) {
                 dialogAlert(
                     '志琼',
@@ -232,7 +270,9 @@
                         _('如插件未启动或等待几秒后仍未提示授权') +
                         '<br/>' +
                         _('请手动下载并运行辅助插件：') +
-                        '<a target="_blank" href="https://cocogoat.work/extra/client?utm_source=zhiqiong">' +
+                        '<a target="_blank" href="' +
+                        S_UPD_PLU +
+                        '">' +
                         _('点此下载') +
                         '</a>',
                     true,
@@ -257,15 +297,24 @@
                 if (firstTime) {
                     if (/zhiqiong\-uwp/.test(navigator.userAgent)) {
                         try {
-                            window.chrome.webview.postMessage({ action: 'PLUGIN', token: '' });
+                            window.chrome.webview.postMessage({ action: 'PLUGIN', token: this.token });
                             await new Promise((resolve) => setTimeout(resolve, 2000));
                         } catch (e) {}
                     } else {
-                        // open url scheme in iframe
-                        const iframe = document.createElement('iframe');
-                        iframe.src = 'cocogoat-control://launch';
-                        iframe.style.display = 'none';
-                        document.body.appendChild(iframe);
+                        const launchUrl = `cocogoat-control://launch?register-token=${this.token}&register-origin=${
+                            uWindow._zhiqiong_frame ? parent.location.origin : location.origin
+                        }`;
+                        if (evsMode) {
+                            const a = document.createElement('a');
+                            a.href = launchUrl;
+                            a.click();
+                        } else {
+                            // open url scheme in iframe
+                            const iframe = document.createElement('iframe');
+                            iframe.src = launchUrl;
+                            iframe.style.display = 'none';
+                            document.body.appendChild(iframe);
+                        }
                     }
                     firstTime = false;
                 }
@@ -276,9 +325,14 @@
             let res;
             try {
                 const endpoint = evsMode ? this.endpoint.https : this.endpoint.http;
+                const supportAppendToken = this.token && this.versionCompare(this.version, '1.2.4') >= 0;
                 res = await fetch(endpoint + 'token?remember', {
                     method: 'POST',
-                    headers: this.remember ? { Authorization: 'Bearer ' + this.remember } : {},
+                    headers: this.remember
+                        ? { Authorization: 'Bearer ' + this.remember + (supportAppendToken ? ` ${this.token}` : '') }
+                        : {
+                              Authorization: 'Bearer ' + this.token,
+                          },
                 });
             } catch (e) {
                 dialogAlert('志琼', '申请授权失败', true);
@@ -405,55 +459,17 @@
         },
     };
     let vue, main, map, markers, drawnItems, icon, COCOGOAT_USER_MARKER;
-    let isPinned = true,
-        isDragging = false;
-    const load = () => {
-        if (location.host === 'yuanshen.site') {
-            (async function () {
-                await fetch('https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js')
-                    .then((e) => e.text())
-                    .then((e) => uWindow.eval(e));
-                const mysMapUtil = await fetch('https://77.cocogoat.work/upgrade/kyjgmaptpl.html').then((e) =>
-                    e.text(),
-                );
-                const mhyuldiv = document.createElement('section');
-                mhyuldiv.innerHTML = mysMapUtil;
-                mhyuldiv.style.display = 'none';
-                mhyuldiv.id = 'zhiqiong-mysmap-util';
-                document.body.appendChild(mhyuldiv);
-                let initInterval = setInterval(() => {
-                    map = uWindow.map;
-                    if (!map || (!window.Peer && !uWindow.Peer)) return;
-                    init();
-                    clearInterval(initInterval);
-                }, 500);
-            })();
-        } else {
-            document.body.appendChild(document.createElement('script')).src =
-                'https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js';
-            localStorage['user-guide-passed'] = true;
-            localStorage['async-announcement-hidden-ts'] = Date.now() + 9999;
-            let initInterval = setInterval(() => {
-                vue = document.querySelector('#root')?.__vue__;
-                main = vue?.$children[0];
-                map = main?.$children[0]?.$children[0]?.map || main?.$children[0]?.map;
-                markers = main?.$children[0]?.$children[0]?.markerList || main?.$children[0]?.markerList;
-                if (!vue || !main || !map || !markers || !markers.length || (!window.Peer && !uWindow.Peer)) return;
-                init();
-                clearInterval(initInterval);
-            }, 500);
-        }
-    };
-    if (document.readyState === 'complete') load();
-    uWindow.addEventListener('load', load);
+    let isPinned = true;
     const init = () => {
         uWindow.$map.map = map;
-        insertStyle();
-        injectHtml();
         setPinned(true);
         drawUserIcon();
         send('init', null);
         uWindow.webControlMAP = webControlMAP;
+        if (sessionStorage['zhiqiong.autoconnect'] == 1) {
+            clickConnect();
+            delete sessionStorage['zhiqiong.autoconnect'];
+        }
     };
     const insertStyle = () => {
         const style = document.createElement('style');
@@ -643,8 +659,142 @@
 .mhy-bbs-app-header {
     display: none;
 }
+.bbs-qr {
+    display: none !important;
+}
 .container .updatelog {display: none !important;}
 .container .updatelog__mask {display: none;}
+/* yuanshen.site */
+.zhiqiong-normal .danjixiazai,
+.zhiqiong-normal .enindex-btn,
+.zhiqiong-normal .jpindex-btn,
+.zhiqiong-normal .fankui,
+.zhiqiong-normal .genshin_pub,
+.zhiqiong-normal .genshin_art,
+.zhiqiong-normal .feixiaoqiu,
+.zhiqiong-normal .wiki{
+    display: none!important;
+}
+
+@media screen and (max-height:700px){
+    .control-containor {
+        zoom: .8;
+    }
+    .switch_BG {
+        display:none;
+    }
+    footer.footer {
+        zoom: .8;
+        width: 100%;
+    }
+}
+@media screen and (max-height:500px){
+    .control-containor {
+        zoom: .7;
+    }
+    .switch_content {
+        zoom: .6;
+        margin-left: 70px;
+        margin-bottom: 0px;
+    }
+}
+
+.switch_content {
+    zoom: .8;
+    margin-left: 50px;
+    margin-bottom: -10px;
+}
+
+.yuanshen-site .cocogoat-actions {
+    left: 7px;
+    bottom: 37px;
+}
+
+.switch_content .switch {
+    background-size: 45% 100%;
+}
+
+.switch_text {
+    margin-left: 52px;
+    border-radius: 5px;
+    padding: 0 5px;
+}
+/* ghzs.com */
+.fixmodel.bottom,.gonggao.visi-div,.share.visi-div,.fixmodel.posi-left.top-left1 {
+    display: none;
+}
+.static-web-ghzs-com .cocogoat-actions {
+    bottom: 68px;
+    margin-left: -16px;
+    right: -44px;
+    left: auto;
+}
+.static-web-ghzs-com .cocogoat-actions .mhy-map__action-btn {
+    background-color: rgba(29,40,57,0.8);
+    box-sizing: border-box;
+    border: 0.01rem solid rgba(255,255,255,0.05);
+    border-radius: 0.08rem;
+}
+.filter-btn.visi-div {
+    width: 40px !important;
+    margin-right: -12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.filter-popup .visi-div::after {
+    border-radius: 0 !important;
+}
+
+@media screen and (max-width:450px){
+    .filter-popup {
+        zoom: .8;
+    }
+    .static-web-ghzs-com .cocogoat-dialog {
+        zoom: 1.25;
+    }
+    .fixmodel.posi-left.top-left {
+        display: none;
+    }
+    .area-item {
+        height: .95rem !important;
+    }
+}
+@media screen and (max-height:450px){
+    .filter-popup {
+        zoom: .8;
+    }
+    .static-web-ghzs-com .cocogoat-dialog {
+        zoom: 1.25;
+    }
+    .fixmodel.posi-left.top-left {
+        display: none;
+    }
+    .area-item {
+        height: .95rem !important;
+    }
+}
+@media screen and (max-height:840px){
+    .areafixmodel-container.areafixmodel {
+        top: 128px !important;
+    }
+    .zone-btn {
+        display: none;
+    }
+    .fixmodel.top {
+        top: 0 !important;
+        right: 0 !important;
+    }
+    .area-item {
+        height: .95rem !important;
+    }
+    .map-btn.visi-box {
+        margin-right: 0;
+        border-radius: 0;
+        border: 0;
+    }
+}
 `;
         document.head.appendChild(style);
     };
@@ -667,9 +817,31 @@
             document.querySelector('.cocogoat-pin').classList.remove('cocogoat-active');
         }
     };
+    const clickConnect = async (e) => {
+        if (webControlMAP.ws) return;
+        if (
+            evsMode &&
+            confirm(
+                '志琼：提示\n\n由于空荧酒馆地图安全策略限制，当前浏览器可能无法启用自动追踪，是否使用兼容模式？\n\n按【确定】进入兼容模式\n按【取消】继续尝试连接\n',
+            )
+        ) {
+            sessionStorage['zhiqiong.autoconnect'] = 1;
+            location.replace('/zhiqiong.dll' + (lang !== 'cn' ? `?lang=${lang}` : ''));
+            return;
+        }
+        if (!(await webControlMAP.authorize())) return;
+        await webControlMAP.mapInit();
+        webControlMAP.ev.off('cvautotrack', mapOnPos);
+        webControlMAP.ev.on('cvautotrack', mapOnPos);
+        webControlMAP.ev.off('close');
+        webControlMAP.ev.on('close', () => {
+            document.querySelector('.cocogoat-more').classList.remove('cocogoat-active--webcontrol');
+        });
+    };
     const injectHtml = () => {
         const root = document.createElement('div');
         root.id = 'cocogoat-root';
+        root.classList.add(site.replace(/\./g, '-'));
         const p1 = new DOMParser();
         const uldom = p1.parseFromString(document.querySelector('.updatelog').parentElement.innerHTML, 'text/html');
         uldom.querySelectorAll('p').forEach((e) => e.remove());
@@ -699,7 +871,9 @@
         ${uldom.body.innerHTML}
     </div>
 `;
-        (document.querySelector('.mhy-game-gis') || document.body).appendChild(root);
+        (document.querySelector('.mhy-game-gis') || document.querySelector('.btn-wrap') || document.body).appendChild(
+            root,
+        );
         document.querySelector('.cocogoat-dialog .updatelog__content-text').innerHTML = `
     <div>
     <div class="text">处理中</div>
@@ -709,17 +883,7 @@
     </div>
 `;
         document.querySelector('.cocogoat-dialog .updatelog__close').addEventListener('click', dialogClose);
-        document.querySelector('.cocogoat-more').addEventListener('click', async (e) => {
-            if (webControlMAP.ws) return;
-            if (!(await webControlMAP.authorize())) return;
-            await webControlMAP.mapInit();
-            webControlMAP.ev.off('cvautotrack', mapOnPos);
-            webControlMAP.ev.on('cvautotrack', mapOnPos);
-            webControlMAP.ev.off('close');
-            webControlMAP.ev.on('close', () => {
-                document.querySelector('.cocogoat-more').classList.remove('cocogoat-active--webcontrol');
-            });
-        });
+        document.querySelector('.cocogoat-more').addEventListener('click', clickConnect);
         document.querySelector('.cocogoat-pin').addEventListener('click', () => {
             setPinned(!isPinned);
         });
@@ -729,8 +893,8 @@
 
         const trackFrame = document.createElement('iframe');
         trackFrame.style.display = 'none';
-        if (location.host === 'yuanshen.site') {
-            fetch('https://77.cocogoat.work/upgrade/kyjgtrackfrm.html')
+        if (evsMode) {
+            fetch(S_TRK_FRM)
                 .then((e) => e.text())
                 .then((e) => {
                     trackFrame.srcdoc = e;
@@ -758,11 +922,28 @@
                     dialogClose();
                 }
             }
-            if (location.host === 'yuanshen.site') {
+            if (site === 'yuanshen.site') {
                 const apos = [];
                 apos[0] = (pos[0] + 5890) / 2;
                 apos[1] = (pos[1] - 2285) / 2;
                 pos.reverse();
+                pos[0] = pos[0] / 1.5;
+                pos[1] = pos[1] / 1.5;
+                COCOGOAT_USER_MARKER.setLatLng(pos);
+                COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
+                COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
+                if (isPinned) map.setView(pos);
+                sharedMap.onmap([...apos, dir, rot]);
+            } else if (site === 'static-web.ghzs.com') {
+                const apos = [];
+                apos[0] = (pos[0] + 5890) / 2;
+                apos[1] = (pos[1] - 2285) / 2;
+                const y = pos[0] / 1.49 + 22670;
+                const x = pos[1] / 1.51 + 19950;
+                const zoomfactor = 2 ** (7 - $map.map._zoom);
+                const unWrappedPos = map.unproject([x / zoomfactor, y / zoomfactor]);
+                pos[0] = unWrappedPos.lat;
+                pos[1] = unWrappedPos.lng;
                 COCOGOAT_USER_MARKER.setLatLng(pos);
                 COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
                 COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
@@ -847,7 +1028,7 @@
             dialogAlert('志琼', '初始化共享连接', false);
             let turnObj = [];
             try {
-                const p = await fetch('https://77.cocogoat.work/v1/utils/turn');
+                const p = await fetch(S_TURNLST);
                 if (p.ok) {
                     turnObj = await p.json();
                     console.log(turnObj);
@@ -966,10 +1147,143 @@
     };
     uWindow.$map.share = sharedMap;
     uWindow.$map.control = webControlMAP;
+    uWindow.$map.site = site;
     uWindow.$map.pin = (p) => {
         if (p === undefined || p === null) return isPinned;
         setPinned(p);
         return isPinned;
     };
     uWindow.webControlMAP = webControlMAP;
-})();
+    const runInitInterval = (cb) => {
+        if (cb()) return;
+        let initInterval = setInterval(() => {
+            if (!cb()) return;
+            clearInterval(initInterval);
+        }, 500);
+    };
+    const load = () => {
+        document.body.classList.add('zhiqiong');
+        document.body.classList.add(site.replace(/\./g, '-'));
+        document.body.classList.add(evsMode ? 'zhiqiong-evs' : 'zhiqiong-normal');
+        if (site === 'yuanshen.site') {
+            console.log('Zhiqiong: yuanshen.site');
+            insertStyle();
+            (async function () {
+                const a = fetch(C_PEER_JS)
+                    .then((e) => e.text())
+                    .then((e) => uWindow.eval(e));
+                const mysMapUtil = await fetch(S_MAP_TPL).then((e) => e.text());
+                await a;
+                const mhyuldiv = document.createElement('section');
+                mhyuldiv.innerHTML = mysMapUtil;
+                mhyuldiv.style.display = 'none';
+                mhyuldiv.id = 'zhiqiong-mysmap-util';
+                document.body.appendChild(mhyuldiv);
+                injectHtml();
+                runInitInterval(() => {
+                    map = uWindow.map;
+                    if (!map || (!window.Peer && !uWindow.Peer)) return false;
+                    init();
+                    return true;
+                });
+            })();
+        } else if (site === 'static-web.ghzs.com') {
+            console.log('Zhiqiong: ghzs.com');
+            insertStyle();
+            (async function () {
+                document.body.appendChild(document.createElement('script')).src = C_PEER_JS;
+                const mysMapUtil = await fetch(S_MAP_TPL).then((e) => e.text());
+                const mhyuldiv = document.createElement('section');
+                mhyuldiv.innerHTML = mysMapUtil;
+                mhyuldiv.style.display = 'none';
+                mhyuldiv.id = 'zhiqiong-mysmap-util';
+                document.body.appendChild(mhyuldiv);
+                injectHtml();
+                runInitInterval(() => {
+                    vue = document.querySelector('#map-app')?.__vue__;
+                    map = vue.$children[0].mapContainer;
+                    if (!vue || !map || (!window.Peer && !uWindow.Peer)) return false;
+                    init();
+                    return true;
+                });
+            })();
+        } else {
+            document.body.appendChild(document.createElement('script')).src = C_PEER_JS;
+            localStorage['user-guide-passed'] = true;
+            localStorage['async-announcement-hidden-ts'] = Date.now() + 9999;
+            runInitInterval(() => {
+                vue = document.querySelector('#root')?.__vue__;
+                main = vue?.$children[0];
+                map = main?.$children[0]?.$children[0]?.map || main?.$children[0]?.map;
+                markers = main?.$children[0]?.$children[0]?.markerList || main?.$children[0]?.markerList;
+                if (!vue || !main || !map || !markers || !markers.length || (!window.Peer && !uWindow.Peer))
+                    return false;
+                insertStyle();
+                injectHtml();
+                init();
+                return true;
+            });
+        }
+    };
+
+    if (
+        site === 'yuanshen.site' &&
+        (location.pathname === '/zhiqiong.dll' || location.pathname === '/docs/zhiqiong.dll')
+    ) {
+        console.log('Zhiqiong: Patcher mode for yuanshen.site');
+        let j = 0;
+        if (uWindow.webpackChunk || location.pathname === '/docs/zhiqiong.dll') {
+            j = 1;
+        }
+        Object.defineProperty(uWindow, 'webpackChunk', {
+            value: {},
+            writable: false,
+        });
+        uWindow._history = uWindow.history;
+        Object.defineProperty(uWindow, 'history', {
+            value: {},
+            writable: false,
+        });
+        Object.defineProperty(uWindow, 'dataLayer', {
+            value: new Proxy({}, {}),
+            writable: false,
+        });
+        const kyjglang = ['en', 'jp'];
+        const index = fetch('/index' + (kyjglang.includes(lang) ? `_${lang}` : '') + '.html').then((e) => e.text());
+        uWindow.onload = async () => {
+            document.open();
+            document.write('');
+            document.close();
+            document.title = '空荧酒馆原神地图 - 志琼:兼容模式';
+            if (j) {
+                uWindow._history.replaceState({}, document.title, '/zhiqiong.dll');
+            }
+            const fr = document.createElement('iframe');
+            const srcdoc = (await index)
+                .replace('Security-Policy', '')
+                .replace('security-policy', '')
+                .replace('<head>', '<head><base href="/" />');
+            fr.srcdoc = srcdoc;
+            fr.style.border = '0';
+            fr.style.width = '100vw';
+            fr.style.height = '100vh';
+            document.body.style.margin = '0';
+            document.body.appendChild(fr);
+            fr.onload = () => {
+                console.log('Zhiqiong: patcher frame loaded');
+                // pass main to frame
+                fr.contentWindow._zhiqiong_frame = true;
+                const funcstr = _zhiqiong_main.toString();
+                fr.contentWindow.eval(funcstr);
+                fr.contentWindow._zhiqiong_main();
+            };
+        };
+        return;
+    } else {
+        console.log('Zhiqiong: Normal mode');
+        if (document.readyState === 'complete') load();
+        uWindow.addEventListener('load', load);
+        uWindow._zq_load = load;
+    }
+}
+_zhiqiong_main();

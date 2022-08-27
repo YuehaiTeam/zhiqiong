@@ -13,14 +13,14 @@
 // @match       https://yuanshen.site/*.dll*
 // @match       https://static-web.ghzs.com/cspage_pro/yuanshenMap*
 // @grant       unsafeWindow
-// @version     1.2.3
+// @version     1.2.5
 // @author      YuehaiTeam
 // @description 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:zh-CN 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:zh-TW 讓你的原神地圖能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:en-US Show realtime in game location in the Teyvat Interactive Map, in browser and mobile phones!Support Hoyolab Interactive map, yuanshen.site and ghzs.com.
-// @downloadURL https://zhiqiong.vercel.app/sharedmap.user.js
-// @updateURL   https://zhiqiong.vercel.app/sharedmap.user.js
+// @downloadURL https://zhiqiong.cocogoat.work/sharedmap.user.js
+// @updateURL   https://zhiqiong.cocogoat.work/sharedmap.user.js
 // ==/UserScript==
 function _zhiqiong_main() {
     const S_MAP_TPL = 'https://77.xyget.cn/public/zhiqiong/maptpl.html';
@@ -917,7 +917,7 @@ function _zhiqiong_main() {
                     document.body.appendChild(trackFrame);
                 });
         } else {
-            trackFrame.src = `https://zhiqiong.vercel.app/tracker?utm_source=${utmsrc}${
+            trackFrame.src = `https://zhiqiong.cocogoat.work/tracker?utm_source=${utmsrc}${
                 utmver !== '0.0.0.0' ? '&utm_medium=' + utmver : ''
             }`;
         }
@@ -1124,7 +1124,7 @@ function _zhiqiong_main() {
             document.querySelector('.cocogoat-share').classList.add('cocogoat-active');
             document.querySelector('.cocogoat-share-dot').innerHTML = this.conn.length;
             const k = this.peerId.replace('cocogoat-shared-map-', '');
-            const url = `https://zhiqiong.vercel.app/#/s/${k}`;
+            const url = `https://zhiqiong.cocogoat.work/#/s/${k}`;
             const qrUrl = `https://www.lofter.com/genBitmaxImage?url=${encodeURIComponent(url)}`;
             dialogAlert(
                 this.conn.length + _('台设备已连接'),

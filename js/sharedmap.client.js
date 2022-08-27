@@ -85,6 +85,10 @@ async function connectPeer(shareId, useTurn = false) {
             },
         });
         peer.on('error', (err) => {
+            if (err.message.indexOf('Could not connect to peer') === 0) {
+                err.message =
+                    '连接失败，请确认连接码是否正确。如不清楚如何获取连接码，请安装PC端油猴脚本或悬浮窗后在共享界面扫码连接。';
+            }
             swal({
                 title: '出错了',
                 text: err.message,

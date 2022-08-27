@@ -39,7 +39,7 @@
                                     d="M490.666667 128v362.666667H128V128h362.666667z m0 768H128v-362.666667h362.666667V896z m42.666666-768H896v362.666667h-362.666667V128z m362.666667 405.333333V896h-362.666667v-362.666667H896z"
                                 ></path>
                             </svg>
-                            <a class="btn inv" href="https://77.cocogoat.work/v1/ascension/zhiqiong/zhiqiong-1.0.6.exe">
+                            <a class="btn inv" href="https://cocogoat.work/zhiqiong">
                                 Game Bar 悬浮窗
                             </a>
                         </div>
@@ -97,6 +97,16 @@
             if (shareId) {
                 shareId = shareId.substring(0, 9);
                 if (shareId.length === 9) {
+                    if (!isNaN(Number(shareId)) && (shareId[0] === '1' || shareId[0] === '2')) {
+                        swal(
+                            '出错了',
+                            '连接码不是您的UID，如不清楚如何获取连接码，请安装PC端油猴脚本或悬浮窗后在共享界面扫码连接。',
+                            'error',
+                        );
+                        document.querySelector('.map-loading').classList.add('hide');
+                        location.replace('#');
+                        return;
+                    }
                     connectPeer(shareId)
                         .then(loadMap)
                         .catch(() => {

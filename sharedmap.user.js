@@ -23,11 +23,12 @@
 // @updateURL   https://zhiqiong.vercel.app/sharedmap.user.js
 // ==/UserScript==
 function _zhiqiong_main() {
-    const S_MAP_TPL = 'https://cocogoat-1251105598.file.myqcloud.com/77/static/zhiqiong/maptpl.html';
-    const S_TRK_FRM = 'https://cocogoat-1251105598.file.myqcloud.com/77/static/zhiqiong/trkfrm.html';
-    const S_TURNLST = 'https://cocogoat-1251105598.file.myqcloud.com/77/v1/utils/turn';
+    const S_MAP_TPL = 'https://77.xyget.cn/public/zhiqiong/maptpl.html';
+    const S_TRK_FRM = 'https://77.xyget.cn/public/zhiqiong/trkfrm.html';
+    const S_TURNLST = 'https://77.xyget.cn/v1/utils/turn';
     const S_UPD_PLU = 'https://cocogoat.work/extra/client?utm_source=zhiqiong';
     const C_PEER_JS = 'https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js';
+    const F_MAP_TPL = () => fetch(S_MAP_TPL).then((e) => e.text());
     const uWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     uWindow.$map = () => {
         debugger;
@@ -471,9 +472,7 @@ function _zhiqiong_main() {
             delete sessionStorage['zhiqiong.autoconnect'];
         }
     };
-    const insertStyle = () => {
-        const style = document.createElement('style');
-        style.innerHTML = `
+    const zqStyle = `
 .cocogoat-user-position{
     display:none;
     background:transparent no-repeat center;
@@ -692,11 +691,6 @@ function _zhiqiong_main() {
     .control-containor {
         zoom: .7;
     }
-    .switch_content {
-        zoom: .6;
-        margin-left: 70px;
-        margin-bottom: 0px;
-    }
 }
 
 .switch_content {
@@ -796,6 +790,10 @@ function _zhiqiong_main() {
     }
 }
 `;
+    const insertStyle = () => {
+        if (uWindow._zhiqiong_frame) return;
+        const style = document.createElement('style');
+        style.innerHTML = zqStyle;
         document.head.appendChild(style);
     };
 
@@ -819,6 +817,15 @@ function _zhiqiong_main() {
     };
     const clickConnect = async (e) => {
         if (webControlMAP.ws) return;
+        if (navigator.userAgent.includes('weixitianli-kongyingjiuguan-uwp/1.2.8')) {
+            // 天理地图商店版使用了此js，但因为商店限制无法连接插件，这里导流到他们的QQ群。
+            dialogAlert(
+                '志琼',
+                '当前版本悬浮窗暂不支持自动追踪功能<br />请安装最新版志琼UWP后重试<br />或加入QQ群538198823了解详情',
+                true,
+            );
+            return;
+        }
         if (
             evsMode &&
             confirm(
@@ -838,16 +845,11 @@ function _zhiqiong_main() {
             document.querySelector('.cocogoat-more').classList.remove('cocogoat-active--webcontrol');
         });
     };
-    const injectHtml = () => {
-        const root = document.createElement('div');
-        root.id = 'cocogoat-root';
-        root.classList.add(site.replace(/\./g, '-'));
+    const genHtml = () => {
         const p1 = new DOMParser();
         const uldom = p1.parseFromString(document.querySelector('.updatelog').parentElement.innerHTML, 'text/html');
         uldom.querySelectorAll('p').forEach((e) => e.remove());
-        const utmsrc = (navigator.userAgent.match(/zhiqiong-dim\/([a-zA-Z0-9]*)/) || [])[1] || 'browser';
-        const utmver = (navigator.userAgent.match(/zhiqiong-uwp\/([0-9.]*)/) || [])[1] || '0.0.0.0';
-        root.innerHTML = `
+        return `
     
     <div class="cocogoat-actions">
         <div class="mhy-map__action-btn cocogoat-pin">
@@ -871,9 +873,19 @@ function _zhiqiong_main() {
         ${uldom.body.innerHTML}
     </div>
 `;
-        (document.querySelector('.mhy-game-gis') || document.querySelector('.btn-wrap') || document.body).appendChild(
-            root,
-        );
+    };
+    const injectHtml = () => {
+        if (!document.getElementById('cocogoat-root')) {
+            const root = document.createElement('div');
+            root.id = 'cocogoat-root';
+            root.classList.add(site.replace(/\./g, '-'));
+            root.innerHTML = genHtml();
+            (
+                document.querySelector('.mhy-game-gis') ||
+                document.querySelector('.btn-wrap') ||
+                document.body
+            ).appendChild(root);
+        }
         document.querySelector('.cocogoat-dialog .updatelog__content-text').innerHTML = `
     <div>
     <div class="text">处理中</div>
@@ -892,6 +904,10 @@ function _zhiqiong_main() {
         });
 
         const trackFrame = document.createElement('iframe');
+        const utmsrc =
+            (navigator.userAgent.match(/zhiqiong-dim\/([a-zA-Z0-9]*)/) || [])[1] ||
+            (navigator.userAgent.includes('weixitianli-kongyingjiuguan-uwp/') ? 'tianli-uwp' : 'browser');
+        const utmver = (navigator.userAgent.match(/zhiqiong-uwp\/([0-9.]*)/) || [])[1] || '0.0.0.0';
         trackFrame.style.display = 'none';
         if (evsMode) {
             fetch(S_TRK_FRM)
@@ -1172,13 +1188,15 @@ function _zhiqiong_main() {
                 const a = fetch(C_PEER_JS)
                     .then((e) => e.text())
                     .then((e) => uWindow.eval(e));
-                const mysMapUtil = await fetch(S_MAP_TPL).then((e) => e.text());
+                const mysMapUtil = document.getElementById('zhiqiong-mysmap-util') ? '' : await F_MAP_TPL();
                 await a;
-                const mhyuldiv = document.createElement('section');
-                mhyuldiv.innerHTML = mysMapUtil;
-                mhyuldiv.style.display = 'none';
-                mhyuldiv.id = 'zhiqiong-mysmap-util';
-                document.body.appendChild(mhyuldiv);
+                if (mysMapUtil) {
+                    const mhyuldiv = document.createElement('section');
+                    mhyuldiv.innerHTML = mysMapUtil;
+                    mhyuldiv.style.display = 'none';
+                    mhyuldiv.id = 'zhiqiong-mysmap-util';
+                    document.body.appendChild(mhyuldiv);
+                }
                 injectHtml();
                 runInitInterval(() => {
                     map = uWindow.map;
@@ -1192,7 +1210,7 @@ function _zhiqiong_main() {
             insertStyle();
             (async function () {
                 document.body.appendChild(document.createElement('script')).src = C_PEER_JS;
-                const mysMapUtil = await fetch(S_MAP_TPL).then((e) => e.text());
+                const mysMapUtil = await F_MAP_TPL();
                 const mhyuldiv = document.createElement('section');
                 mhyuldiv.innerHTML = mysMapUtil;
                 mhyuldiv.style.display = 'none';
@@ -1250,32 +1268,59 @@ function _zhiqiong_main() {
         });
         const kyjglang = ['en', 'jp'];
         const index = fetch('/index' + (kyjglang.includes(lang) ? `_${lang}` : '') + '.html').then((e) => e.text());
+        const mysMapUtil = F_MAP_TPL();
         uWindow.onload = async () => {
             document.open();
-            document.write('');
+            document.write(`<title>志琼:空荧酒馆原神地图 [兼容模式]</title><style>
+  html{background:#000000d9}
+  .loading {width: 100%;height: 100%;overflow: hidden;display: flex;justify-content: center;align-items: center;position:relative;}
+  .loading img {width: 300px;max-width: 100%;}
+  .loading--d {background: #262626;content: " ";position: absolute;top: 0;left: 0;right: 0;bottom: 0;opacity: .8;transition:all 5s;will-change:transform;}
+</style><div class="loading"><div class="loading--d"></div><img src="./imgs/loading-bar.png" alt="Loading..." focusable="false"></div>`);
             document.close();
-            document.title = '空荧酒馆原神地图 - 志琼:兼容模式';
+            document.querySelector('.loading--d').style.transform = 'translateX(100%)';
             if (j) {
                 uWindow._history.replaceState({}, document.title, '/zhiqiong.dll');
             }
+            const mhyuldiv = document.createElement('section');
+            mhyuldiv.innerHTML = await mysMapUtil;
+            mhyuldiv.style.display = 'none';
+            mhyuldiv.id = 'zhiqiong-mysmap-util';
+            document.body.appendChild(mhyuldiv);
             const fr = document.createElement('iframe');
             const srcdoc = (await index)
                 .replace('Security-Policy', '')
                 .replace('security-policy', '')
-                .replace('<head>', '<head><base href="/" />');
+                .replace('<body>', '<body class="zhiqiong-normal">')
+                .replace(
+                    '</body>',
+                    mhyuldiv.outerHTML +
+                        `<div id="cocogoat-root" class="${site.replace(/\./g, '-')}">` +
+                        genHtml() +
+                        '</div></body>',
+                )
+                .replace('<head>', '<head><base href="/" />')
+                .replace(
+                    '</head>',
+                    '<style id="zhiqiong-style">' +
+                        zqStyle +
+                        '</style></head><script>window._zhiqiong_frame=true;eval(decodeURI(' +
+                        JSON.stringify(encodeURI(_zhiqiong_main.toString())) +
+                        '));_zhiqiong_main();</script>',
+                );
             fr.srcdoc = srcdoc;
             fr.style.border = '0';
+            fr.style.position = 'absolute';
+            fr.style.top = '0';
+            fr.style.left = '0';
             fr.style.width = '100vw';
             fr.style.height = '100vh';
+            fr.style.opacity = '0';
+            fr.style.transition = 'all .2s';
             document.body.style.margin = '0';
             document.body.appendChild(fr);
             fr.onload = () => {
-                console.log('Zhiqiong: patcher frame loaded');
-                // pass main to frame
-                fr.contentWindow._zhiqiong_frame = true;
-                const funcstr = _zhiqiong_main.toString();
-                fr.contentWindow.eval(funcstr);
-                fr.contentWindow._zhiqiong_main();
+                fr.style.opacity = '1';
             };
         };
         return;

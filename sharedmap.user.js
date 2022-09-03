@@ -13,7 +13,7 @@
 // @match       https://yuanshen.site/*.dll*
 // @match       https://static-web.ghzs.com/cspage_pro/yuanshenMap*
 // @grant       unsafeWindow
-// @version     1.2.5
+// @version     1.2.6
 // @author      YuehaiTeam
 // @description 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:zh-CN 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
@@ -459,7 +459,7 @@ function _zhiqiong_main() {
             }, 500);
         },
     };
-    let vue, main, map, markers, drawnItems, icon, COCOGOAT_USER_MARKER;
+    let vue, main, gis, map, markers, drawnItems, icon, COCOGOAT_USER_MARKER;
     let isPinned = true;
     const init = () => {
         uWindow.$map.map = map;
@@ -1232,10 +1232,21 @@ function _zhiqiong_main() {
             runInitInterval(() => {
                 vue = document.querySelector('#root')?.__vue__;
                 main = vue?.$children[0];
-                map = main?.$children[0]?.$children[0]?.map || main?.$children[0]?.map;
+                gis = main?.$children[0];
+                map = gis?.$children[0]?.map || gis?.map;
                 markers = main?.$children[0]?.$children[0]?.markerList || main?.$children[0]?.markerList;
                 if (!vue || !main || !map || !markers || !markers.length || (!window.Peer && !uWindow.Peer))
                     return false;
+                Object.defineProperty(gis, '$isPc', {
+                    get() {
+                        return !gis.$isMobile;
+                    },
+                });
+                Object.defineProperty(gis, '$isMobile', {
+                    get() {
+                        return window.innerWidth <= 900;
+                    },
+                });
                 insertStyle();
                 injectHtml();
                 init();

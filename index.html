@@ -39,9 +39,7 @@
                                     d="M490.666667 128v362.666667H128V128h362.666667z m0 768H128v-362.666667h362.666667V896z m42.666666-768H896v362.666667h-362.666667V128z m362.666667 405.333333V896h-362.666667v-362.666667H896z"
                                 ></path>
                             </svg>
-                            <a class="btn inv" href="https://cocogoat.work/zhiqiong">
-                                Game Bar 悬浮窗
-                            </a>
+                            <a class="btn inv" href="https://cocogoat.work/zhiqiong"> Game Bar 悬浮窗 </a>
                         </div>
                         <div class="a">
                             <svg class="icon" viewBox="0 0 1024 1024">
@@ -93,7 +91,7 @@
         }
         const shareinit = () => {
             document.querySelector('.map-loading').classList.remove('hide');
-            let shareId = location.hash.split('/s/')[1] || '';
+            let shareId = (location.hash.split('/s/')[1] || '').split('?')[0];
             if (shareId) {
                 shareId = shareId.substring(0, 9);
                 if (shareId.length === 9) {

@@ -13,7 +13,7 @@
 // @match       https://yuanshen.site/*.dll*
 // @match       https://static-web.ghzs.com/cspage_pro/yuanshenMap*
 // @grant       unsafeWindow
-// @version     1.2.6
+// @version     1.3.0.0
 // @author      YuehaiTeam
 // @description 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:zh-CN 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
@@ -28,6 +28,25 @@ function _zhiqiong_main() {
     const S_TURNLST = 'https://77.xyget.cn/v1/utils/turn';
     const S_UPD_PLU = 'https://cocogoat.work/extra/client?utm_source=zhiqiong';
     const C_PEER_JS = 'https://lib.baomitu.com/peerjs/2.0.0-beta.3/peerjs.min.js';
+    const C_QRCO_JS = 'https://lib.baomitu.com/qrcode/1.5.1/qrcode.min.js';
+    const C_GLBX_JS = 'https://lib.baomitu.com/glightbox/3.2.0/js/glightbox.min.js';
+    const C_GLBX_CSS = 'https://lib.baomitu.com/glightbox/3.2.0/css/glightbox.min.css';
+    const L_OVERLAYS = [
+        {
+            name: '米游社 - 须弥 - 沙漠地下',
+            image: 'https://upload-bbs.mihoyo.com/upload/2022/10/29/300350281/4b5f2f9a5186d4c27d52910a39211b7f_2427272594906556713.png',
+            position: [6420, -6890],
+            resolution: 3072,
+            sites: ['webstatic.mihoyo.com', 'act.hoyolab.com'],
+        },
+        {
+            name: '米游社 - 须弥 - 森林地下',
+            image: 'https://upload-bbs.mihoyo.com/upload/2022/10/29/300350281/e316346f4572c7d7e8778e71eabe95e0_6486682272623226706.png',
+            position: [4515, -5350],
+            resolution: 3072,
+            sites: ['webstatic.mihoyo.com', 'act.hoyolab.com'],
+        },
+    ];
     const F_MAP_TPL = () => fetch(S_MAP_TPL).then((e) => e.text());
     const uWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     uWindow.$map = () => {
@@ -67,7 +86,51 @@ function _zhiqiong_main() {
             正在尝试启动辅助插件: 'Trying to launch helper plugin',
             如插件未启动或等待几秒后仍未提示授权: "If the plugin didn't show up in a few minutes",
             '请手动下载并运行辅助插件：': 'Please run it maunally : ',
+            地图叠层: 'Map overlays',
+            连接插件: 'Connect to plugin',
+            跟随定位: 'Follow location',
+            多屏共享: 'Multi-screen sharing',
         },
+    };
+    const cvat_errcode_cn = {
+        101: '未能找到原神窗口',
+        102: '获取原神窗口区域失败',
+        103: '截取原神窗口画面失败',
+        104: '未能找到原神窗口',
+        105: '获取原神窗口区域失败',
+        106: '截取原神窗口画面失败',
+        107: '搜索派蒙图标位置失败',
+        108: '判断是否初始化失败',
+        109: '未能找到原神窗口',
+        110: '获取原神窗口区域失败',
+        111: '截取原神窗口画面失败',
+        112: '搜索小地图位置失败',
+        113: '未能找到原神窗口',
+        114: '获取原神窗口区域失败',
+        115: '截取原神窗口画面失败',
+        116: '搜索角色箭头位置失败',
+        117: '未能找到原神窗口',
+        118: '获取原神窗口区域失败',
+        119: '截取原神窗口画面失败',
+        120: '搜索小地图位置失败',
+        121: '未能找到原神窗口',
+        122: '获取原神窗口区域失败',
+        123: '截取原神窗口画面失败',
+        124: '搜索小地图位置失败',
+        125: '未能找到原神窗口',
+        126: '获取原神窗口区域失败',
+        127: '截取原神窗口画面失败',
+        128: '搜索UID位置失败',
+        1001: '搜索派蒙图标位置失败',
+        1001001: '默认模式搜索派蒙失败，正在切换到DX11模式',
+        1002: '搜索派蒙图标位置失败',
+    };
+    const cvat_err = (code, j) => {
+        return cvat_errcode_cn[code]
+            ? _(cvat_errcode_cn[code])
+            : j
+            ? j.errorList.map((e) => _(e.msg)).join(';')
+            : _('未知的错误码 ') + code;
     };
     let site = location.host;
     if (uWindow._zhiqiong_frame) {
@@ -209,7 +272,7 @@ function _zhiqiong_main() {
         remember: uWindow.localStorage['zhiqiong.remember'] || '',
         ws: undefined,
         ev: new mitt(),
-        targetVersion: evsMode ? '1.2.4' : '1.2.3',
+        targetVersion: '1.3.0',
         versionCompare(a, b) {
             const aParts = a.split('.');
             const bParts = b.split('.');
@@ -282,6 +345,30 @@ function _zhiqiong_main() {
             }
             return true;
         },
+        getWithTimeout: async function (url, timeout) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.timeout = timeout;
+                xhr.open('GET', url);
+                xhr.send();
+                xhr.onload = () => {
+                    if (xhr.status === 200 || xhr.status === 201) {
+                        resolve({
+                            status: xhr.status,
+                            data: JSON.parse(xhr.responseText),
+                        });
+                    } else {
+                        reject(new Error(xhr.statusText));
+                    }
+                };
+                xhr.onerror = (e) => {
+                    reject(e);
+                };
+                xhr.ontimeout = () => {
+                    reject(new Error('timeout'));
+                };
+            });
+        },
         authorize: async function () {
             if (this.ws) return;
             dialogAlert('志琼', '正在连接辅助插件...', false);
@@ -302,9 +389,20 @@ function _zhiqiong_main() {
                             await new Promise((resolve) => setTimeout(resolve, 2000));
                         } catch (e) {}
                     } else {
-                        const launchUrl = `cocogoat-control://launch?register-token=${this.token}&register-origin=${
+                        const launchBase = 'cocogoat-control://launch';
+                        const signapiBase = 'https://77.cocogoat.work/v2/frostflake/sign';
+                        const launchParams = `?register-token=${this.token}&register-origin=${
                             uWindow._zhiqiong_frame ? parent.location.origin : location.origin
                         }`;
+                        let launchUrl = `${launchBase}${launchParams}`;
+                        try {
+                            // remote-sign launch url
+                            const res = await this.getWithTimeout(signapiBase + launchParams, 2000);
+                            if (res.status === 201 && res.data && res.data.url) {
+                                launchUrl = res.data.url;
+                            }
+                        } catch (e) {}
+                        // in iframe
                         if (evsMode) {
                             const a = document.createElement('a');
                             a.href = launchUrl;
@@ -319,7 +417,7 @@ function _zhiqiong_main() {
                     }
                     firstTime = false;
                 }
-                await new Promise((resolve) => setTimeout(resolve, 2000));
+                await new Promise((resolve) => setTimeout(resolve, 1500));
             }
             this.ev.off('dialogClose', onclose);
             if (!connected || dialogClosed) return false;
@@ -349,7 +447,7 @@ function _zhiqiong_main() {
             this.ws = new (WsOrEventSource())((evsMode ? this.endpoint.wss : this.endpoint.ws) + this.token);
             this.ws.onclose = () => {
                 this.ws = undefined;
-                this.ev.addEventListener('close');
+                this.ev.emit('close');
             };
             this.ws.onmessage = (e) => {
                 const data = JSON.parse(e.data);
@@ -360,7 +458,7 @@ function _zhiqiong_main() {
             return true;
         },
         wsInvoke(action, ...data) {
-            const body = { action, data };
+            const body = { action, version: 7, data };
             if (!this.ws) throw new Error('WebSocket not connected');
             const id = Math.round(Date.now() * 1000 + Math.random() * 1000).toString(16);
             const reqjson = {
@@ -378,6 +476,23 @@ function _zhiqiong_main() {
             });
             this.ws.send(JSON.stringify(reqjson));
             return resp;
+        },
+        async debugCapture() {
+            const res = await this.wsInvoke('DebugCaptureRes');
+            if (res.body.data) {
+                const tmpg = GLightbox({
+                    elements: [
+                        {
+                            href: res.body.data,
+                            type: 'image',
+                        },
+                    ],
+                });
+                tmpg.open();
+                tmpg.once('close', () => tmpg.destroy());
+            } else {
+                dialogAlert('志琼', _('截图失败：') + '<br/>' + JSON.stringify(res.body));
+            }
         },
         formatSize(size) {
             if (size < 1024) {
@@ -459,7 +574,7 @@ function _zhiqiong_main() {
             }, 500);
         },
     };
-    let vue, main, gis, map, markers, drawnItems, icon, COCOGOAT_USER_MARKER;
+    let vue, main, gis, map, markers, drawnItems, icon, COCOGOAT_USER_MARKER, COCOGOAT_OVERLAY_GROUP;
     let isPinned = true;
     const init = () => {
         uWindow.$map.map = map;
@@ -628,8 +743,8 @@ function _zhiqiong_main() {
     transition: all .2s;
 }
 .cocogoat-dialog .share-qr {
-    height: 1rem;
-    width: 1rem;
+    height: 100px;
+    width: 100px;
     box-sizing: content-box;
     padding-left: 5px;
     padding-right: 10px;
@@ -789,6 +904,9 @@ function _zhiqiong_main() {
         border: 0;
     }
 }
+.mhy-map__action-btn.cocogoat-overlay svg {
+    width: 55%;
+}
 `;
     const insertStyle = () => {
         if (uWindow._zhiqiong_frame) return;
@@ -816,6 +934,8 @@ function _zhiqiong_main() {
         }
     };
     const clickConnect = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         if (webControlMAP.ws) return;
         if (navigator.userAgent.includes('weixitianli-kongyingjiuguan-uwp/1.2.8')) {
             // 天理地图商店版使用了此js，但因为商店限制无法连接插件，这里导流到他们的QQ群。
@@ -850,15 +970,19 @@ function _zhiqiong_main() {
         const uldom = p1.parseFromString(document.querySelector('.updatelog').parentElement.innerHTML, 'text/html');
         uldom.querySelectorAll('p').forEach((e) => e.remove());
         return `
-    
+
+
     <div class="cocogoat-actions">
-        <div class="mhy-map__action-btn cocogoat-pin">
+        <a class="mhy-map__action-btn cocogoat-overlay" title="${_('地图叠层')}">
+            <svg viewBox="0 0 1024 1024"><path d="M581.44768 79.872l298.1888 169.28768c20.00896 11.34592 27.36128 37.376 16.384 58.14272a41.984 41.984 0 0 1-16.384 16.9984L581.44768 493.568a140.12416 140.12416 0 0 1-138.89536 0l-298.1888-169.28768c-20.00896-11.34592-27.36128-37.376-16.384-58.14272a41.984 41.984 0 0 1 16.384-16.9984L442.55232 79.872a140.12416 140.12416 0 0 1 138.89536 0z m296.59136 381.8496l1.59744 0.94208c20.00896 11.8784 27.36128 39.07584 16.384 60.74368a43.19232 43.19232 0 0 1-16.384 17.75616l-298.1888 176.86528a134.92224 134.92224 0 0 1-138.89536 0l-298.1888-176.86528c-20.00896-11.8784-27.36128-39.05536-16.384-60.74368 3.76832-7.49568 9.46176-13.63968 16.384-17.75616l1.59744-0.94208a78.88896 78.88896 0 0 1 80.896 0l215.69536 127.93856a134.92224 134.92224 0 0 0 138.89536 0l215.69536-127.93856a78.88896 78.88896 0 0 1 80.896 0z m0 225.28l1.59744 0.94208c20.00896 11.8784 27.36128 39.07584 16.384 60.74368a43.19232 43.19232 0 0 1-16.384 17.75616l-298.1888 176.86528a134.92224 134.92224 0 0 1-138.89536 0l-298.1888-176.86528c-20.00896-11.8784-27.36128-39.05536-16.384-60.74368 3.76832-7.49568 9.46176-13.63968 16.384-17.75616l1.59744-0.94208a78.88896 78.88896 0 0 1 80.896 0l215.69536 127.93856a134.92224 134.92224 0 0 0 138.89536 0l215.69536-127.93856a78.88896 78.88896 0 0 1 80.896 0z"></path></svg>
+        </a>
+        <a class="mhy-map__action-btn cocogoat-pin" title="${_('跟随定位')}">
             <svg viewBox="0 0 1024 1024"><path d="M176 478.208l275.328 91.733333c1.28 0.426667 2.261333 1.408 2.688 2.688l91.733333 275.328a4.266667 4.266667 0 0 0 7.978667 0.341334l279.381333-651.861334a4.266667 4.266667 0 0 0-5.589333-5.589333L175.658667 470.186667a4.266667 4.266667 0 0 0 0.341333 7.978666z"></path></svg>
-        </div>
-        <div class="mhy-map__action-btn cocogoat-more">
+        </a>
+        <a class="mhy-map__action-btn cocogoat-more" title="${_('连接插件')}">
             <svg viewBox="0 0 204 204" class="v-icon cocogoat"><g><path d=" M 92.79 59.13 C 94.98 55.32 98.53 52.56 101.92 49.88 C 105.14 52.74 108.92 55.30 111.02 59.15 C 110.63 62.49 107.80 65.92 104.21 65.83 C 101.15 65.86 97.27 66.68 95.10 63.91 C 93.97 62.56 92.73 60.98 92.79 59.13 Z"></path><path d=" M 82.38 54.26 C 82.72 54.23 83.41 54.17 83.76 54.14 C 86.77 57.18 89.10 60.84 92.29 63.72 C 93.95 65.58 96.89 67.68 95.57 70.52 C 93.68 75.27 90.04 79.03 87.26 83.27 C 85.94 84.91 84.25 87.99 81.72 86.52 C 79.39 83.07 77.68 79.20 75.02 75.95 C 73.64 73.84 70.87 71.42 72.69 68.75 C 75.49 63.69 78.35 58.47 82.38 54.26 Z"></path><path d=" M 119.11 54.95 C 120.87 52.96 122.79 55.72 123.89 57.04 C 126.97 61.41 130.22 65.85 132.00 70.92 C 128.93 76.45 124.76 81.37 121.83 87.03 C 121.20 86.96 119.95 86.83 119.33 86.77 C 116.16 82.55 113.06 78.28 110.00 73.99 C 108.50 71.78 106.78 68.39 109.16 66.15 C 112.65 62.58 116.01 58.89 119.11 54.95 Z"></path><path d=" M 51.82 63.56 C 58.70 63.02 64.12 67.97 68.08 72.99 C 72.28 77.62 75.21 83.19 78.32 88.57 C 80.70 92.48 79.50 97.42 81.68 101.44 C 84.44 88.13 95.06 78.87 101.41 67.39 C 103.21 69.06 104.59 71.10 105.93 73.15 C 111.83 81.55 119.56 89.46 121.42 99.94 C 121.88 99.79 122.79 99.50 123.25 99.35 C 123.62 95.93 123.59 92.31 125.30 89.22 C 129.75 80.82 134.83 72.41 142.47 66.52 C 145.21 64.40 148.62 63.50 152.06 63.57 C 150.18 68.18 148.61 72.98 148.91 78.04 C 148.87 91.80 143.22 105.66 132.73 114.74 C 129.22 118.10 124.49 120.51 122.54 125.21 C 127.83 124.55 132.04 121.10 136.38 118.32 C 145.39 112.57 154.03 106.14 161.79 98.78 C 167.77 93.07 171.20 85.51 174.16 77.96 C 176.45 77.74 177.07 80.44 178.09 81.97 C 181.72 88.26 181.50 95.83 180.67 102.81 C 179.03 109.41 175.27 115.68 169.55 119.51 C 161.87 124.32 153.00 127.10 143.98 127.83 C 140.96 128.00 137.94 128.52 135.19 129.85 C 136.01 134.37 136.26 139.44 133.24 143.26 C 129.03 150.23 118.48 151.96 112.25 146.74 C 108.03 143.08 106.71 137.40 103.80 132.82 C 102.28 133.14 100.11 132.48 99.28 134.22 C 96.79 138.38 95.66 143.53 91.73 146.71 C 87.38 150.49 80.82 150.55 75.80 148.14 C 72.69 146.31 70.33 143.26 68.96 139.95 C 67.64 136.66 68.75 133.04 68.04 129.67 C 65.75 128.01 62.69 128.23 60.02 127.83 C 51.21 127.21 42.64 124.39 35.05 119.91 C 28.95 116.19 24.96 109.66 23.29 102.82 C 22.58 95.83 22.21 88.24 25.83 81.92 C 26.84 80.41 27.51 77.79 29.76 77.99 C 31.70 81.87 32.72 86.19 35.15 89.83 C 41.41 100.09 51.57 106.93 61.00 113.98 C 67.60 117.93 73.49 123.71 81.26 125.19 C 79.42 120.47 74.79 118.01 71.24 114.75 C 60.50 105.43 54.82 91.11 55.06 76.99 C 55.35 72.26 53.43 67.89 51.82 63.56 M 72.72 129.22 C 72.52 135.00 78.56 138.93 83.85 138.62 C 87.70 138.20 90.56 135.35 93.11 132.70 C 87.27 128.33 79.61 128.62 72.72 129.22 M 110.90 132.29 C 112.59 134.55 114.51 136.81 117.21 137.86 C 123.13 140.54 131.06 135.91 131.17 129.27 C 124.29 128.39 117.05 128.76 110.90 132.29 Z"></path></g></svg>
-        </div>
-        <div class="mhy-map__action-btn cocogoat-share">
+        </a>
+        <a class="mhy-map__action-btn cocogoat-share" title="${_('多屏共享')}">
             <svg viewBox="0 0 1024 1024">
                 <path d="M262.4 262.4l115.2 0 0 115.2-115.2 0 0-115.2Z"></path>
                 <path d="M262.4 646.4l115.2 0 0 115.2-115.2 0 0-115.2Z"></path>
@@ -867,10 +991,14 @@ function _zhiqiong_main() {
                 <path d="M160 217.6l0 262.4 320 0 0-320L217.6 160C185.6 160 160 185.6 160 217.6zM422.4 422.4 217.6 422.4 217.6 217.6l204.8 0L422.4 422.4z" p-id="2905"></path><path d="M160 806.4c0 32 25.6 57.6 57.6 57.6l262.4 0 0-320-320 0L160 806.4zM217.6 601.6l204.8 0 0 204.8L217.6 806.4 217.6 601.6z" p-id="2906"></path><path d="M544 544l204.8 0 0 57.6-204.8 0 0-57.6Z" p-id="2907"></path><path d="M691.2 627.2 627.2 627.2 627.2 691.2 691.2 691.2 691.2 748.8 748.8 748.8 748.8 691.2 864 691.2 864 627.2 748.8 627.2Z" p-id="2908"></path><path d="M544 748.8l57.6 0 0 115.2-57.6 0 0-115.2Z" p-id="2909"></path><path d="M627.2 748.8l57.6 0 0 57.6-57.6 0 0-57.6Z" p-id="2910"></path><path d="M544 627.2l57.6 0 0 57.6-57.6 0 0-57.6Z" p-id="2911"></path><path d="M806.4 544l57.6 0 0 57.6-57.6 0 0-57.6Z" p-id="2912"></path><path d="M806.4 160 544 160l0 320 320 0L864 217.6C864 185.6 838.4 160 806.4 160zM806.4 422.4 601.6 422.4 601.6 217.6l204.8 0L806.4 422.4z"></path>
             </svg>
             <div class="cocogoat-share-dot">0</div>
-        </div>
+        </a>
     </div>
     <div class="cocogoat-dialog">
         ${uldom.body.innerHTML}
+    </div>
+    <div class="cocogoat-helper">
+
+
     </div>
 `;
     };
@@ -895,11 +1023,33 @@ function _zhiqiong_main() {
     </div>
 `;
         document.querySelector('.cocogoat-dialog .updatelog__close').addEventListener('click', dialogClose);
+        document.querySelector('.cocogoat-overlay').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (map.hasLayer(COCOGOAT_OVERLAY_GROUP)) {
+                map.removeLayer(COCOGOAT_OVERLAY_GROUP);
+                document.querySelector('.cocogoat-overlay').classList.remove('cocogoat-active');
+            } else {
+                map.addLayer(COCOGOAT_OVERLAY_GROUP);
+                document.querySelector('.cocogoat-overlay').classList.add('cocogoat-active');
+            }
+        });
         document.querySelector('.cocogoat-more').addEventListener('click', clickConnect);
         document.querySelector('.cocogoat-pin').addEventListener('click', () => {
+            e.preventDefault();
+            e.stopPropagation();
             setPinned(!isPinned);
         });
+        document.querySelector('.cocogoat-pin').addEventListener('contextmenu', (e) => {
+            if (confirm('进行调试截图?')) {
+                e.preventDefault();
+                e.stopPropagation();
+                $map.control.debugCapture();
+            }
+        });
         document.querySelector('.cocogoat-share').addEventListener('click', () => {
+            e.preventDefault();
+            e.stopPropagation();
             if (webControlMAP.ws) sharedMap.init();
         });
 
@@ -923,57 +1073,70 @@ function _zhiqiong_main() {
         }
         document.body.appendChild(trackFrame);
     };
-    const mapOnPos = (pos) => {
+    let cap1001 = 0;
+    const mapOnPos = (posobj) => {
         document.body.classList.add('cocogoat-activated');
         document.querySelector('.cocogoat-more').classList.add('cocogoat-active');
-        if (pos.length === 5) {
-            pos.reverse();
-            const succ = pos.shift();
-            const dir = pos.shift();
-            const rot = pos.shift();
-            if (succ === 0 && pos[0] === 0 && pos[1] === 0) {
-                return dialogAlert('志琼', '未检测到原神窗口', false);
-            } else {
-                if (document.querySelector('.cocogoat-dialog .text').innerText === _('未检测到原神窗口')) {
-                    dialogClose();
+        let { m, x, y, r: rot, a: dir, e, j } = posobj;
+        if (e > 0) {
+            if (e === 1001 && cap1001 >= -2) {
+                if (cap1001 >= 5) {
+                    e = 1001001;
                 }
+                if (cap1001 >= 8) {
+                    capModeChanged = true;
+                    webControlMAP.wsInvoke('SetUseDx11CaptureMode');
+                } else {
+                    cap1001++;
+                }
+            } else if (e === 1001 && cap1001 < -2) {
+                return;
             }
-            if (site === 'yuanshen.site') {
-                const apos = [];
-                apos[0] = (pos[0] + 5890) / 2;
-                apos[1] = (pos[1] - 2285) / 2;
-                pos.reverse();
-                pos[0] = pos[0] / 1.5;
-                pos[1] = pos[1] / 1.5;
-                COCOGOAT_USER_MARKER.setLatLng(pos);
-                COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
-                COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
-                if (isPinned) map.setView(pos);
-                sharedMap.onmap([...apos, dir, rot]);
-            } else if (site === 'static-web.ghzs.com') {
-                const apos = [];
-                apos[0] = (pos[0] + 5890) / 2;
-                apos[1] = (pos[1] - 2285) / 2;
-                const y = pos[0] / 1.49 + 22670;
-                const x = pos[1] / 1.51 + 19950;
-                const zoomfactor = 2 ** (7 - $map.map._zoom);
-                const unWrappedPos = map.unproject([x / zoomfactor, y / zoomfactor]);
-                pos[0] = unWrappedPos.lat;
-                pos[1] = unWrappedPos.lng;
-                COCOGOAT_USER_MARKER.setLatLng(pos);
-                COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
-                COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
-                if (isPinned) map.setView(pos);
-                sharedMap.onmap([...apos, dir, rot]);
-            } else {
-                pos[0] = (pos[0] + 5890) / 2;
-                pos[1] = (pos[1] - 2285) / 2;
-                COCOGOAT_USER_MARKER.setLatLng(pos);
-                COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
-                COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
-                if (isPinned) map.setView(pos);
-                sharedMap.onmap([...pos, dir, rot]);
+            return dialogAlert('志琼', `<!--cvat-error-->${_('地图识别失败：')}${cvat_err(e, j)}`, false);
+        } else {
+            if (document.querySelector('.cocogoat-dialog .text').innerHTML.includes('<!--cvat-error-->')) {
+                dialogClose();
             }
+        }
+        if (cap1001 > -5) {
+            cap1001--;
+        }
+        const pos = [y, x];
+        if (site === 'yuanshen.site') {
+            const apos = [];
+            apos[0] = (pos[0] + 5890) / 2;
+            apos[1] = (pos[1] - 2285) / 2;
+            pos.reverse();
+            pos[0] = pos[0] / 1.5;
+            pos[1] = pos[1] / 1.5;
+            COCOGOAT_USER_MARKER.setLatLng(pos);
+            COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
+            COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
+            if (isPinned) map.setView(pos);
+            sharedMap.onmap([...apos, dir, rot, posobj, site]);
+        } else if (site === 'static-web.ghzs.com') {
+            const apos = [];
+            apos[0] = (pos[0] + 5890) / 2;
+            apos[1] = (pos[1] - 2285) / 2;
+            const y = pos[0] / 1.49 + 22670;
+            const x = pos[1] / 1.51 + 19950;
+            const zoomfactor = 2 ** (7 - $map.map._zoom);
+            const unWrappedPos = map.unproject([x / zoomfactor, y / zoomfactor]);
+            pos[0] = unWrappedPos.lat;
+            pos[1] = unWrappedPos.lng;
+            COCOGOAT_USER_MARKER.setLatLng(pos);
+            COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
+            COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
+            if (isPinned) map.setView(pos);
+            sharedMap.onmap([...apos, dir, rot, posobj, site]);
+        } else {
+            pos[0] = (pos[0] + 5890) / 2;
+            pos[1] = (pos[1] - 2285) / 2;
+            COCOGOAT_USER_MARKER.setLatLng(pos);
+            COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
+            COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
+            if (isPinned) map.setView(pos);
+            sharedMap.onmap([...pos, dir, rot, posobj, site]);
         }
     };
     const drawUserIcon = () => {
@@ -986,6 +1149,28 @@ function _zhiqiong_main() {
         try {
             COCOGOAT_USER_MARKER.setRotationOrigin('center');
         } catch (e) {}
+        COCOGOAT_OVERLAY_GROUP = L.layerGroup([]);
+        let itemCount = 0;
+        L_OVERLAYS.forEach((item) => {
+            if (item.sites.includes(site)) {
+                itemCount++;
+                new Image().src = item.image;
+                L.imageOverlay(
+                    item.image,
+                    L.latLngBounds([
+                        item.position,
+                        [item.position[0] - item.resolution, item.position[1] + item.resolution],
+                    ]),
+                    {
+                        opacity: 1,
+                        interactive: false,
+                    },
+                ).addTo(COCOGOAT_OVERLAY_GROUP);
+            }
+        });
+        if (itemCount <= 0) {
+            document.querySelector('.cocogoat-overlay').style.display = 'none';
+        }
         // listen for drag
         let tmpDragging = -1;
         let tmpMousePos = [0, 0];
@@ -1052,6 +1237,10 @@ function _zhiqiong_main() {
             } catch (e) {}
             this.peer = new Peer(`cocogoat-shared-map-${this.randkey()}`, {
                 debug: 3,
+                host: '77.xyget.cn',
+                port: 443,
+                path: '/ashaka',
+                secure: true,
                 config: {
                     iceServers: [{ url: 'stun:stun.qq.com:3478' }, { url: 'stun:stun.miwifi.com:3478' }, ...turnObj],
                 },
@@ -1074,6 +1263,12 @@ function _zhiqiong_main() {
                 });
                 conn.on('data', function (data) {
                     if (!data.action) return;
+                    if (data.action === 'querymap') {
+                        conn.send({
+                            ...data,
+                            data: site,
+                        });
+                    }
                     if (data.action === 'xhr') {
                         const request = data.data;
                         var xhr = new XMLHttpRequest();
@@ -1120,12 +1315,12 @@ function _zhiqiong_main() {
         broadcast(msg) {
             this.conn.forEach((e) => e.send(msg));
         },
-        show() {
-            document.querySelector('.cocogoat-share').classList.add('cocogoat-active');
-            document.querySelector('.cocogoat-share-dot').innerHTML = this.conn.length;
+        async show() {
             const k = this.peerId.replace('cocogoat-shared-map-', '');
             const url = `https://zhiqiong.cocogoat.work/#/s/${k}`;
-            const qrUrl = `https://www.lofter.com/genBitmaxImage?url=${encodeURIComponent(url)}`;
+            const qrUrl = await QRCode.toDataURL(url);
+            document.querySelector('.cocogoat-share').classList.add('cocogoat-active');
+            document.querySelector('.cocogoat-share-dot').innerHTML = this.conn.length;
             dialogAlert(
                 this.conn.length + _('台设备已连接'),
                 `
@@ -1188,8 +1383,21 @@ function _zhiqiong_main() {
                 const a = fetch(C_PEER_JS)
                     .then((e) => e.text())
                     .then((e) => uWindow.eval(e));
+                const b = fetch(C_QRCO_JS)
+                    .then((e) => e.text())
+                    .then((e) => uWindow.eval(e));
+                const c = fetch(C_GLBX_JS)
+                    .then((e) => e.text())
+                    .then((e) => uWindow.eval(e));
+                const d = fetch(C_GLBX_CSS)
+                    .then((e) => e.text())
+                    .then((e) => {
+                        const style = document.createElement('style');
+                        style.innerHTML = e;
+                        document.head.appendChild(style);
+                    });
                 const mysMapUtil = document.getElementById('zhiqiong-mysmap-util') ? '' : await F_MAP_TPL();
-                await a;
+                await Promise.all([a, b, c, d]);
                 if (mysMapUtil) {
                     const mhyuldiv = document.createElement('section');
                     mhyuldiv.innerHTML = mysMapUtil;
@@ -1210,6 +1418,12 @@ function _zhiqiong_main() {
             insertStyle();
             (async function () {
                 document.body.appendChild(document.createElement('script')).src = C_PEER_JS;
+                document.body.appendChild(document.createElement('script')).src = C_QRCO_JS;
+                document.body.appendChild(document.createElement('script')).src = C_GLBX_JS;
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = C_GLBX_CSS;
+                document.head.appendChild(link);
                 const mysMapUtil = await F_MAP_TPL();
                 const mhyuldiv = document.createElement('section');
                 mhyuldiv.innerHTML = mysMapUtil;
@@ -1227,6 +1441,12 @@ function _zhiqiong_main() {
             })();
         } else {
             document.body.appendChild(document.createElement('script')).src = C_PEER_JS;
+            document.body.appendChild(document.createElement('script')).src = C_QRCO_JS;
+            document.body.appendChild(document.createElement('script')).src = C_GLBX_JS;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = C_GLBX_CSS;
+            document.head.appendChild(link);
             localStorage['user-guide-passed'] = true;
             localStorage['async-announcement-hidden-ts'] = Date.now() + 9999;
             runInitInterval(() => {
@@ -1287,7 +1507,7 @@ function _zhiqiong_main() {
   .loading {width: 100%;height: 100%;overflow: hidden;display: flex;justify-content: center;align-items: center;position:relative;}
   .loading img {width: 300px;max-width: 100%;}
   .loading--d {background: #262626;content: " ";position: absolute;top: 0;left: 0;right: 0;bottom: 0;opacity: .8;transition:all 5s;will-change:transform;}
-</style><div class="loading"><div class="loading--d"></div><img src="./imgs/loading-bar.png" alt="Loading..." focusable="false"></div>`);
+</style><div class="loading"><div class="loading--d"></div><img src="./imgs/loading-bar.png" title="Loading..." focusable="false"></div>`);
             document.close();
             document.querySelector('.loading--d').style.transform = 'translateX(100%)';
             if (j) {

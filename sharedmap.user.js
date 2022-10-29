@@ -13,7 +13,7 @@
 // @match       https://yuanshen.site/*.dll*
 // @match       https://static-web.ghzs.com/cspage_pro/yuanshenMap*
 // @grant       unsafeWindow
-// @version     1.3.0.0
+// @version     1.3.0.1
 // @author      YuehaiTeam
 // @description 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:zh-CN 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
@@ -22,6 +22,7 @@
 // @downloadURL https://zhiqiong.cocogoat.work/sharedmap.user.js
 // @updateURL   https://zhiqiong.cocogoat.work/sharedmap.user.js
 // ==/UserScript==
+const ZQ_JSVER = '1.3.0.1';
 function _zhiqiong_main() {
     const S_MAP_TPL = 'https://77.xyget.cn/public/zhiqiong/maptpl.html';
     const S_TRK_FRM = 'https://77.xyget.cn/public/zhiqiong/trkfrm.html';
@@ -934,8 +935,10 @@ function _zhiqiong_main() {
         }
     };
     const clickConnect = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         if (webControlMAP.ws) return;
         if (navigator.userAgent.includes('weixitianli-kongyingjiuguan-uwp/1.2.8')) {
             // 天理地图商店版使用了此js，但因为商店限制无法连接插件，这里导流到他们的QQ群。
@@ -1035,7 +1038,7 @@ function _zhiqiong_main() {
             }
         });
         document.querySelector('.cocogoat-more').addEventListener('click', clickConnect);
-        document.querySelector('.cocogoat-pin').addEventListener('click', () => {
+        document.querySelector('.cocogoat-pin').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             setPinned(!isPinned);
@@ -1047,7 +1050,7 @@ function _zhiqiong_main() {
                 $map.control.debugCapture();
             }
         });
-        document.querySelector('.cocogoat-share').addEventListener('click', () => {
+        document.querySelector('.cocogoat-share').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             if (webControlMAP.ws) sharedMap.init();
@@ -1067,7 +1070,7 @@ function _zhiqiong_main() {
                     document.body.appendChild(trackFrame);
                 });
         } else {
-            trackFrame.src = `https://zhiqiong.cocogoat.work/tracker?utm_source=${utmsrc}${
+            trackFrame.src = `https://zhiqiong.cocogoat.work/tracker?jsver=${ZQ_JSVER}utm_source=${utmsrc}${
                 utmver !== '0.0.0.0' ? '&utm_medium=' + utmver : ''
             }`;
         }

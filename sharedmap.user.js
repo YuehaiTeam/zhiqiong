@@ -23,7 +23,8 @@
 // @updateURL   https://zhiqiong.cocogoat.work/sharedmap.user.js
 // ==/UserScript==
 function _zhiqiong_main() {
-    const ZQ_JSVER = '1.3.0.2';
+    const IS_WEIXIN = navigator.userAgent.toLowerCase().indexOf('micromessenger') !== -1;
+    const ZQ_JSVER = '1.3.0.3';
     const S_MAP_TPL = 'https://77.xyget.cn/public/zhiqiong/maptpl.html';
     const S_TRK_FRM = 'https://77.xyget.cn/public/zhiqiong/trkfrm.html';
     const S_TURNLST = 'https://77.xyget.cn/v1/utils/turn';
@@ -48,6 +49,83 @@ function _zhiqiong_main() {
             sites: ['webstatic.mihoyo.com', 'act.hoyolab.com'],
         },
     ];
+    // ajax_cache makes hoyolab map load faster, but maybe cause some bugs
+    // so it's disabled now and will be onlined in the future
+    const enable_ajax_config = top.location.href.includes('_zhiqiong_ajax_hook') || localStorage.getItem('zhiqiong_ajax_hook') === 'true';
+    const T_AJAX_CONFIG = enable_ajax_config
+        ? {
+              cache: [
+                  {
+                      url: 'https://bbs-api.mihoyo.com/user/wapi/getUserFullInfo',
+                      prefix: true,
+                  },
+                  {
+                      url: 'https://passport-api-v4.mihoyo.com/account/ma-cn-session/web/verifyLtoken',
+                      prefix: true,
+                  },
+                  {
+                      url: 'https://api-takumi.mihoyo.com/binding/api/getUserGameRolesByCookieToken',
+                      prefix: true,
+                  },
+                  {
+                      url: 'https://api-takumi.mihoyo.com/common/map_user/ys_obc/v1/map/spot_kind/get_spot_kinds',
+                      prefix: false,
+                  },
+                  {
+                      url: 'https://waf-api-takumi.mihoyo.com/common/map_user/ys_obc/v1/map/label/tree',
+                      prefix: false,
+                  },
+                  {
+                      url: 'https://waf-api-takumi.mihoyo.com/common/map_user/ys_obc/v1/map/game_item',
+                      prefix: false,
+                  },
+                  {
+                      url: 'https://waf-api-takumi.mihoyo.com/common/map_user/ys_obc/v1/map/get_public_notice',
+                      prefix: false,
+                  },
+                  {
+                      url: 'https://waf-api-takumi.mihoyo.com/common/map_user/ys_obc/v1/map/get_guide',
+                      prefix: false,
+                  },
+                  {
+                      url: 'https://waf-api-takumi.mihoyo.com/common/map_user/ys_obc/v1/map/get_feedback',
+                      prefix: false,
+                  },
+                  {
+                      url: 'https://api-takumi.mihoyo.com/common/map_user/ys_obc/v1/map/point/mark_map_point_list',
+                      prefix: false,
+                  },
+                  {
+                      url: 'https://waf-api-takumi.mihoyo.com/common/map_user/ys_obc/v1/map/point/list',
+                      prefix: false,
+                  },
+              ],
+              direct: [
+                  ...(IS_WEIXIN
+                      ? []
+                      : [
+                            {
+                                url: 'https://api.mihoyo.com/weixin_api/get/signature',
+                                response: {
+                                    status: 200,
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    response: JSON.stringify({
+                                        retcode: 0,
+                                        message: 'succ',
+                                        data: {
+                                            timestamp: Date.now(),
+                                            noncestr: '',
+                                            signature: '',
+                                        },
+                                    }),
+                                },
+                            },
+                        ]),
+              ],
+          }
+        : { cache: [], direct: [] };
     const F_MAP_TPL = () => fetch(S_MAP_TPL).then((e) => e.text());
     const uWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
     uWindow.$map = () => {
@@ -127,6 +205,9 @@ function _zhiqiong_main() {
         1002: '搜索派蒙图标位置失败',
     };
     const cvat_err = (code, j) => {
+        // when code is 1001/2001/3001, a real error is followed by it
+        if (code === 1001 || code === 2001 || code === 3001) code = -1;
+        j.errorList = j.errorList.filter((e) => e.code !== 1001 && e.code !== 2001 && e.code !== 3001);
         return cvat_errcode_cn[code]
             ? _(cvat_errcode_cn[code])
             : j
@@ -191,6 +272,335 @@ function _zhiqiong_main() {
             };
         };
     });
+
+    /* Ajax-Hook.js */
+
+    !(function (t, e) {
+        for (var n in e) t[n] = e[n];
+    })(
+        window,
+        (function (t) {
+            function e(r) {
+                if (n[r]) return n[r].exports;
+                var o = (n[r] = { i: r, l: !1, exports: {} });
+                return t[r].call(o.exports, o, o.exports, e), (o.l = !0), o.exports;
+            }
+            var n = {};
+            return (
+                (e.m = t),
+                (e.c = n),
+                (e.i = function (t) {
+                    return t;
+                }),
+                (e.d = function (t, n, r) {
+                    e.o(t, n) || Object.defineProperty(t, n, { configurable: !1, enumerable: !0, get: r });
+                }),
+                (e.n = function (t) {
+                    var n =
+                        t && t.__esModule
+                            ? function () {
+                                  return t.default;
+                              }
+                            : function () {
+                                  return t;
+                              };
+                    return e.d(n, 'a', n), n;
+                }),
+                (e.o = function (t, e) {
+                    return Object.prototype.hasOwnProperty.call(t, e);
+                }),
+                (e.p = ''),
+                e((e.s = 3))
+            );
+        })([
+            function (t, e, n) {
+                'use strict';
+                function r(t, e) {
+                    var n = {};
+                    for (var r in t) n[r] = t[r];
+                    return (n.target = n.currentTarget = e), n;
+                }
+                function o(t) {
+                    function e(e) {
+                        return function () {
+                            var n = this.hasOwnProperty(e + '_') ? this[e + '_'] : this.xhr[e],
+                                r = (t[e] || {}).getter;
+                            return (r && r(n, this)) || n;
+                        };
+                    }
+                    function n(e) {
+                        return function (n) {
+                            var o = this.xhr,
+                                i = this,
+                                u = t[e];
+                            if ('on' === e.substring(0, 2))
+                                (i[e + '_'] = n),
+                                    (o[e] = function (u) {
+                                        (u = r(u, i)), (t[e] && t[e].call(i, o, u)) || n.call(i, u);
+                                    });
+                            else {
+                                var s = (u || {}).setter;
+                                (n = (s && s(n, i)) || n), (this[e + '_'] = n);
+                                try {
+                                    o[e] = n;
+                                } catch (t) {}
+                            }
+                        };
+                    }
+                    function o(e) {
+                        return function () {
+                            var n = [].slice.call(arguments);
+                            if (t[e]) {
+                                var r = t[e].call(this, n, this.xhr);
+                                if (r) return r;
+                            }
+                            return this.xhr[e].apply(this.xhr, n);
+                        };
+                    }
+                    return (
+                        (uWindow[s] = uWindow[s] || uWindow.XMLHttpRequest),
+                        (uWindow.XMLHttpRequest = function () {
+                            var t = new uWindow[s]();
+                            for (var r in t) {
+                                var i = '';
+                                try {
+                                    i = u(t[r]);
+                                } catch (t) {}
+                                'function' === i
+                                    ? (this[r] = o(r))
+                                    : Object.defineProperty(this, r, { get: e(r), set: n(r), enumerable: !0 });
+                            }
+                            var a = this;
+                            (t.getProxy = function () {
+                                return a;
+                            }),
+                                (this.xhr = t);
+                        }),
+                        uWindow[s]
+                    );
+                }
+                function i() {
+                    uWindow[s] && (XMLHttpRequest = uWindow[s]), (uWindow[s] = void 0);
+                }
+                Object.defineProperty(e, '__esModule', { value: !0 });
+                var u =
+                    'function' == typeof Symbol && 'symbol' == typeof Symbol.iterator
+                        ? function (t) {
+                              return typeof t;
+                          }
+                        : function (t) {
+                              return t &&
+                                  'function' == typeof Symbol &&
+                                  t.constructor === Symbol &&
+                                  t !== Symbol.prototype
+                                  ? 'symbol'
+                                  : typeof t;
+                          };
+                (e.configEvent = r), (e.hook = o), (e.unHook = i);
+                var s = '_rxhr';
+            },
+            function (t, e, n) {
+                'use strict';
+                function r(t) {
+                    if (h) throw 'Proxy already exists';
+                    return (h = new f(t));
+                }
+                function o() {
+                    (h = null), (0, d.unHook)();
+                }
+                function i(t) {
+                    return t.replace(/^\s+|\s+$/g, '');
+                }
+                function u(t) {
+                    return t.watcher || (t.watcher = document.createElement('a'));
+                }
+                function s(t, e) {
+                    var n = t.getProxy(),
+                        r = 'on' + e + '_',
+                        o = (0, d.configEvent)({ type: e }, n);
+                    n[r] && n[r](o);
+                    var i;
+                    'function' == typeof Event
+                        ? (i = new Event(e, { bubbles: !1 }))
+                        : ((i = document.createEvent('Event')), i.initEvent(e, !1, !0)),
+                        u(t).dispatchEvent(i);
+                }
+                function a(t) {
+                    (this.xhr = t), (this.xhrProxy = t.getProxy());
+                }
+                function c(t) {
+                    function e(t) {
+                        a.call(this, t);
+                    }
+                    return (e[b] = Object.create(a[b])), (e[b].next = t), e;
+                }
+                function f(t) {
+                    function e(t, e) {
+                        var n = new P(t);
+                        if (!f) return n.resolve();
+                        var r = {
+                            response: e.response,
+                            status: e.status,
+                            statusText: e.statusText,
+                            config: t.config,
+                            headers:
+                                t.resHeader ||
+                                t
+                                    .getAllResponseHeaders()
+                                    .split('\r\n')
+                                    .reduce(function (t, e) {
+                                        if ('' === e) return t;
+                                        var n = e.split(':');
+                                        return (t[n.shift()] = i(n.join(':'))), t;
+                                    }, {}),
+                        };
+                        f(r, n);
+                    }
+                    function n(t, e, n) {
+                        var r = new H(t),
+                            o = { config: t.config, error: n };
+                        h ? h(o, r) : r.next(o);
+                    }
+                    function r() {
+                        return !0;
+                    }
+                    function o(t, e) {
+                        return n(t, this, e), !0;
+                    }
+                    function a(t, n) {
+                        return 4 === t.readyState && 0 !== t.status ? e(t, n) : 4 !== t.readyState && s(t, w), !0;
+                    }
+                    var c = t.onRequest,
+                        f = t.onResponse,
+                        h = t.onError;
+                    return (0, d.hook)({
+                        onload: r,
+                        onloadend: r,
+                        onerror: o,
+                        ontimeout: o,
+                        onabort: o,
+                        onreadystatechange: function (t) {
+                            return a(t, this);
+                        },
+                        open: function (t, e) {
+                            var r = this,
+                                o = (e.config = { headers: {} });
+                            (o.method = t[0]),
+                                (o.url = t[1]),
+                                (o.async = t[2]),
+                                (o.user = t[3]),
+                                (o.password = t[4]),
+                                (o.xhr = e);
+                            var i = 'on' + w;
+                            e[i] ||
+                                (e[i] = function () {
+                                    return a(e, r);
+                                });
+                            var u = function (t) {
+                                n(e, r, (0, d.configEvent)(t, r));
+                            };
+                            if (
+                                ([x, y, g].forEach(function (t) {
+                                    var n = 'on' + t;
+                                    e[n] || (e[n] = u);
+                                }),
+                                c)
+                            )
+                                return !0;
+                        },
+                        send: function (t, e) {
+                            var n = e.config;
+                            if (((n.withCredentials = e.withCredentials), (n.body = t[0]), c)) {
+                                var r = function () {
+                                    c(n, new m(e));
+                                };
+                                return !1 === n.async ? r() : setTimeout(r), !0;
+                            }
+                        },
+                        setRequestHeader: function (t, e) {
+                            return (e.config.headers[t[0].toLowerCase()] = t[1]), !0;
+                        },
+                        addEventListener: function (t, e) {
+                            var n = this;
+                            if (-1 !== l.indexOf(t[0])) {
+                                var r = t[1];
+                                return (
+                                    u(e).addEventListener(t[0], function (e) {
+                                        var o = (0, d.configEvent)(e, n);
+                                        (o.type = t[0]), (o.isTrusted = !0), r.call(n, o);
+                                    }),
+                                    !0
+                                );
+                            }
+                        },
+                        getAllResponseHeaders: function (t, e) {
+                            var n = e.resHeader;
+                            if (n) {
+                                var r = '';
+                                for (var o in n) r += o + ': ' + n[o] + '\r\n';
+                                return r;
+                            }
+                        },
+                        getResponseHeader: function (t, e) {
+                            var n = e.resHeader;
+                            if (n) return n[(t[0] || '').toLowerCase()];
+                        },
+                    });
+                }
+                Object.defineProperty(e, '__esModule', { value: !0 }), (e.proxy = r), (e.unProxy = o);
+                var h,
+                    d = n(0),
+                    l = ['load', 'loadend', 'timeout', 'error', 'readystatechange', 'abort'],
+                    v = l[0],
+                    p = l[1],
+                    y = l[2],
+                    x = l[3],
+                    w = l[4],
+                    g = l[5],
+                    b = 'prototype';
+                a[b] = Object.create({
+                    resolve: function (t) {
+                        var e = this.xhrProxy,
+                            n = this.xhr;
+                        (e.readyState = 4),
+                            (n.resHeader = t.headers),
+                            (e.response = e.responseText = t.response),
+                            (e.statusText = t.statusText),
+                            (e.status = t.status),
+                            s(n, w),
+                            s(n, v),
+                            s(n, p);
+                    },
+                    reject: function (t) {
+                        (this.xhrProxy.status = 0), s(this.xhr, t.type), s(this.xhr, p);
+                    },
+                });
+                var m = c(function (t) {
+                        var e = this.xhr;
+                        (t = t || e.config),
+                            (e.withCredentials = t.withCredentials),
+                            e.open(t.method, t.url, !1 !== t.async, t.user, t.password);
+                        for (var n in t.headers) e.setRequestHeader(n, t.headers[n]);
+                        e.send(t.body);
+                    }),
+                    P = c(function (t) {
+                        this.resolve(t);
+                    }),
+                    H = c(function (t) {
+                        this.reject(t);
+                    });
+            },
+            ,
+            function (t, e, n) {
+                'use strict';
+                Object.defineProperty(e, '__esModule', { value: !0 }), (e.ah = void 0);
+                var r = n(0),
+                    o = n(1);
+                e.ah = { proxy: o.proxy, unProxy: o.unProxy, hook: r.hook, unHook: r.unHook };
+            },
+        ]),
+    );
+
     const uuid = () => {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
             var r = (Math.random() * 16) | 0,
@@ -296,7 +706,7 @@ function _zhiqiong_main() {
         },
         ping: async function (noerr) {
             const ver = new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
+                const xhr = new XHR();
                 xhr.timeout = 1500;
                 xhr.open('GET', evsMode ? this.endpoint.https : this.endpoint.http);
                 xhr.send();
@@ -587,6 +997,45 @@ function _zhiqiong_main() {
             clickConnect();
             delete sessionStorage['zhiqiong.autoconnect'];
         }
+    };
+    const T_AJAX_CACHE = {};
+    const XHR = XMLHttpRequest;
+    const initah = () => {
+        console.log('MhyMap::Hook::Cache', 'init');
+        ah.proxy({
+            onRequest: (config, handler) => {
+                for (const i of T_AJAX_CONFIG.cache) {
+                    if (config.url.indexOf(i.url) !== -1 && T_AJAX_CACHE[i.prefix ? i.url : config.url]) {
+                        console.log('MhyMap::Hook::Cache::Hit', config.url);
+                        return handler.resolve(T_AJAX_CACHE[i.prefix ? i.url : config.url]);
+                    }
+                }
+                for (const i of T_AJAX_CONFIG.direct) {
+                    if (config.url.indexOf(i.url) !== -1) {
+                        console.log('MhyMap::Hook::Direct', config.url);
+                        return handler.resolve({
+                            ...i.response,
+                            config,
+                        });
+                    }
+                }
+                handler.next(config);
+            },
+            onError: (err, handler) => {
+                handler.next(err);
+            },
+            onResponse: (response, handler) => {
+                const config = handler.xhr.config;
+                for (const i of T_AJAX_CONFIG.cache) {
+                    if (config.url.indexOf(i.url) !== -1) {
+                        T_AJAX_CACHE[i.prefix ? i.url : config.url] = response;
+                        console.log('MhyMap::Hook::Cache::Miss', config.url);
+                        break;
+                    }
+                }
+                handler.next(response);
+            },
+        });
     };
     const zqStyle = `
 .cocogoat-user-position{
@@ -908,6 +1357,9 @@ function _zhiqiong_main() {
 .mhy-map__action-btn.cocogoat-overlay svg {
     width: 55%;
 }
+.mhy-map-container .map-loading {
+    display: none;
+}
 `;
     const insertStyle = () => {
         if (uWindow._zhiqiong_frame) return;
@@ -965,7 +1417,9 @@ function _zhiqiong_main() {
         webControlMAP.ev.on('cvautotrack', mapOnPos);
         webControlMAP.ev.off('close');
         webControlMAP.ev.on('close', () => {
-            document.querySelector('.cocogoat-more').classList.remove('cocogoat-active--webcontrol');
+            document.body.classList.remove('cocogoat-activated');
+            document.querySelector('.cocogoat-more').classList.remove('cocogoat-active');
+            dialogClose();
         });
     };
     const genHtml = () => {
@@ -1012,7 +1466,7 @@ function _zhiqiong_main() {
             root.classList.add(site.replace(/\./g, '-'));
             root.innerHTML = genHtml();
             (
-                document.querySelector('.mhy-game-gis') ||
+                document.querySelector('.mhy-map-container') ||
                 document.querySelector('.btn-wrap') ||
                 document.body
             ).appendChild(root);
@@ -1081,27 +1535,28 @@ function _zhiqiong_main() {
         document.body.classList.add('cocogoat-activated');
         document.querySelector('.cocogoat-more').classList.add('cocogoat-active');
         let { m, x, y, r: rot, a: dir, e, j } = posobj;
+        const is50001 = !!j.errorList.find((e) => e.code === 50001);
         if (e > 0) {
-            if (e === 1001 && cap1001 >= -2) {
-                if (cap1001 >= 5) {
+            if (is50001 && cap1001 >= -2) {
+                if (cap1001 >= 10) {
                     e = 1001001;
                 }
-                if (cap1001 >= 8) {
+                if (cap1001 >= 15) {
                     capModeChanged = true;
                     webControlMAP.wsInvoke('SetUseDx11CaptureMode');
                 } else {
                     cap1001++;
                 }
-            } else if (e === 1001 && cap1001 < -2) {
+            } else if (is50001 && cap1001 < -2) {
                 return;
             }
-            return dialogAlert('志琼', `<!--cvat-error-->${_('地图识别失败：')}${cvat_err(e, j)}`, false);
+            dialogAlert('志琼', `<!--cvat-error-->${_('地图识别失败：')}${cvat_err(e, j)}`, false);
         } else {
             if (document.querySelector('.cocogoat-dialog .text').innerHTML.includes('<!--cvat-error-->')) {
                 dialogClose();
             }
         }
-        if (cap1001 > -5) {
+        if (cap1001 > -50) {
             cap1001--;
         }
         const pos = [y, x];
@@ -1559,7 +2014,8 @@ function _zhiqiong_main() {
         };
         return;
     } else {
-        console.log('Zhiqiong: Normal mode');
+        console.log('ZQ::Mode::Normal');
+        initah();
         if (document.readyState === 'complete') load();
         uWindow.addEventListener('load', load);
         uWindow._zq_load = load;

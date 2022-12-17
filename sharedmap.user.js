@@ -51,7 +51,8 @@ function _zhiqiong_main() {
     ];
     // ajax_cache makes hoyolab map load faster, but maybe cause some bugs
     // so it's disabled now and will be onlined in the future
-    const enable_ajax_config = top.location.href.includes('_zhiqiong_ajax_hook') || localStorage.getItem('zhiqiong_ajax_hook') === 'true';
+    const enable_ajax_config =
+        top.location.href.includes('_zhiqiong_ajax_hook') || localStorage.getItem('zhiqiong_ajax_hook') === 'true';
     const T_AJAX_CONFIG = enable_ajax_config
         ? {
               cache: [
@@ -1536,7 +1537,8 @@ function _zhiqiong_main() {
         document.querySelector('.cocogoat-more').classList.add('cocogoat-active');
         let { m, x, y, r: rot, a: dir, e, j } = posobj;
         const is50001 = !!j.errorList.find((e) => e.code === 50001);
-        if (e > 0) {
+        const ignore_errs = [9, 3003, 3004];
+        if (e > 0 && !ignore_errs.includes(e)) {
             if (is50001 && cap1001 >= -2) {
                 if (cap1001 >= 10) {
                     e = 1001001;

@@ -13,7 +13,7 @@
 // @match       https://yuanshen.site/*.dll*
 // @match       https://static-web.ghzs.com/cspage_pro/yuanshenMap*
 // @grant       unsafeWindow
-// @version     1.3.0.2
+// @version     1.3.0.3
 // @author      YuehaiTeam
 // @description 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:zh-CN 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)

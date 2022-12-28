@@ -12,10 +12,18 @@
             _hmt.push(['_setAutoPageview', false]);
             _hmt.push(['_setReferrerOverride', r]);
             _hmt.push(['_trackPageview', u]);
+            const ur = new URL(location.href.replace(location.hash, ''));
+            ur.pathname += `/${ur.searchParams.get('v') || ur.searchParams.get('jsver')}/${
+                ur.searchParams.get('a') || ur.searchParams.get('utm_source')
+            }/${ur.searchParams.get('c') || ur.searchParams.get('utm_medium') || ''}`;
+            ur.searchParams.set('utm_source', ur.searchParams.get('a') || ur.searchParams.get('utm_source'));
+            if (ur.searchParams.get('utm_source') === 'null') {
+                ur.searchParams.delete('utm_source');
+            }
             fetch('https://77.cocogoat.work/event', {
                 body: JSON.stringify({
                     n: 'pageview',
-                    u,
+                    u: ur.toString().replace(ur.origin, ''),
                     r: r || null,
                     d: 'zhiqiong.cocogoat.work',
                     w: Number(location.hash.replace('#', '').split('##')[1]) || window.innerWidth,

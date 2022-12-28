@@ -1,19 +1,30 @@
 <!DOCTYPE html>
-<html lang="zh-Hans">
+<html lang="zh-hans">
     <head>
         <meta charset="UTF-8" />
         <meta http-equiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Zhiqiong Tracker</title>
         <script>
-            var _hmt = _hmt || [];
-            (function () {
-                var hm = document.createElement('script');
-                hm.src = 'https://hm.baidu.com/hm.js?acfdfc4daaea0bba08e436daece9c487';
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(hm, s);
-            })();
+            var _hmt = _hmt || [],
+                r = location.hash.replace('#', '').split('##')[0] || document.referrer,
+                u = location.href.replace(location.hash, '').replace(location.origin, '');
+            _hmt.push(['_setAutoPageview', false]);
+            _hmt.push(['_setReferrerOverride', r]);
+            _hmt.push(['_trackPageview', u]);
+            fetch('https://77.cocogoat.work/event', {
+                body: JSON.stringify({
+                    n: 'pageview',
+                    u,
+                    r: r || null,
+                    d: 'zhiqiong.cocogoat.work',
+                    w: Number(location.hash.replace('#', '').split('##')[1]) || window.innerWidth,
+                    p: {},
+                }),
+                method: 'POST',
+            });
         </script>
+        <script async src="https://hm.baidu.com/hm.js?acfdfc4daaea0bba08e436daece9c487"></script>
     </head>
     <body></body>
 </html>

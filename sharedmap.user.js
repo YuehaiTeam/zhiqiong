@@ -13,7 +13,7 @@
 // @match       https://yuanshen.site/*.dll*
 // @match       https://static-web.ghzs.com/cspage_pro/yuanshenMap*
 // @grant       unsafeWindow
-// @version     1.3.0.3
+// @version     1.3.0.5
 // @author      YuehaiTeam
 // @description 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:zh-CN 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
@@ -24,7 +24,7 @@
 // ==/UserScript==
 function _zhiqiong_main() {
     const IS_WEIXIN = navigator.userAgent.toLowerCase().indexOf('micromessenger') !== -1;
-    const ZQ_JSVER = '1.3.0.3';
+    const ZQ_JSVER = '1.3.0.4';
     const S_MAP_TPL = 'https://77.xyget.cn/public/zhiqiong/maptpl.html';
     const S_TRK_FRM = 'https://77.xyget.cn/public/zhiqiong/trkfrm.html';
     const S_TURNLST = 'https://77.xyget.cn/v1/utils/turn';
@@ -1094,7 +1094,7 @@ function _zhiqiong_main() {
     z-index: 99999;
 }
 .filter-panel__fold {
-    display: block !important;
+    display: flex !important;
 }
 .route-list.route-list--mobile-detail {
     border-top-right-radius: 0;
@@ -1361,6 +1361,11 @@ function _zhiqiong_main() {
 .mhy-map-container .map-loading {
     display: none;
 }
+.mhy-map__waypoint--folded {
+    margin-left: 80px;
+    margin-bottom: 10px;
+    zoom: 0.7;
+}
 `;
     const insertStyle = () => {
         if (uWindow._zhiqiong_frame) return;
@@ -1525,9 +1530,13 @@ function _zhiqiong_main() {
                     document.body.appendChild(trackFrame);
                 });
         } else {
-            trackFrame.src = `https://zhiqiong.cocogoat.work/tracker?jsver=${ZQ_JSVER}&utm_source=${utmsrc}${
-                utmver !== '0.0.0.0' ? '&utm_medium=' + utmver : ''
-            }`;
+            let local = location.href;
+            try {
+                local = top.location.href;
+            } catch (e) {}
+            trackFrame.src = `https://zhiqiong.cocogoat.work/tracker?v=${ZQ_JSVER}&a=${utmsrc}${
+                utmver !== '0.0.0.0' ? '&c=' + utmver : ''
+            }#${local}##${window.innerWidth}`;
         }
         document.body.appendChild(trackFrame);
     };

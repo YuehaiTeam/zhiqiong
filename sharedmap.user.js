@@ -1926,11 +1926,6 @@ function _zhiqiong_main() {
                 markers = main?.$children[0]?.$children[0]?.markerList || main?.$children[0]?.markerList;
                 if (!vue || !main || !map || !markers || !markers.length || (!window.Peer && !uWindow.Peer))
                     return false;
-                Object.defineProperty(gis, '$isPc', {
-                    get() {
-                        return !gis.$isMobile;
-                    },
-                });
                 Object.defineProperty(gis, '$isMobile', {
                     get() {
                         return window.innerWidth <= 900;

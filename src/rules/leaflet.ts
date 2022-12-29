@@ -13,7 +13,10 @@ export abstract class LeafletRule extends BaseRule {
     overlay!: L.LayerGroup
     dom!: HTMLDivElement
     icondom!: HTMLDivElement
-    abstract findMap(): Promise<L.Map>
+    async findMap(): Promise<L.Map> {
+        if (!this.map) throw new Error('Map not found')
+        return this.map
+    }
     async findLeaflet(): Promise<typeof L> {
         return this.window.L
     }

@@ -1,3 +1,4 @@
+import { ZQMapPosition } from './../../lib/position'
 import * as L from 'leaflet'
 import { runInitInterval } from '../base'
 import { LeafletRule } from '../leaflet'
@@ -25,12 +26,11 @@ export class MiyousheRule extends LeafletRule {
         })
         await super.init()
     }
-    async getMountpoint(): Promise<HTMLElement> {
-        return (document.querySelector('.mhy-map-container') ||
-            document.querySelector('.btn-wrap') ||
-            document.body) as HTMLElement
-    }
-    async findMap(): Promise<L.Map> {
-        return this.map
+    setPosition(pos: ZQMapPosition) {
+        pos.x = (pos.x + 5890) / 2
+        pos.y = (pos.y - 2285) / 2
+        pos.characterRotation = 0 - pos.characterRotation
+        pos.viewportRotation = 0 - pos.viewportRotation
+        return super.setPosition(pos)
     }
 }

@@ -1,3 +1,3 @@
-import { LeafletRule } from "./leaflet";
+import { LeafletRule } from "../leaflet";
 
 export class KongyingV3Rule extends LeafletRule{}

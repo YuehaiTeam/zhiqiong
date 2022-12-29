@@ -29,5 +29,14 @@ export class ZhiqiongApp {
         mp.appendChild(this.root)
         this.app.mount(this.root)
         this.mounted = true
+        this.rule.setPosition({
+            x: 0,
+            y: 0,
+            characterRotation: 0,
+            viewportRotation: 0,
+            mapId: 0,
+            err: 0,
+            errors: [],
+        })
     }
 }

@@ -1,7 +1,7 @@
 import { ZQMapPosition } from './../../lib/position'
-import * as L from 'leaflet'
 import { runInitInterval } from '../base'
 import { LeafletRule } from '../leaflet'
+import './miyoushe.scss'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MiyousheAny = any
 export class MiyousheRule extends LeafletRule {

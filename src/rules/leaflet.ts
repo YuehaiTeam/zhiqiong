@@ -1,5 +1,4 @@
 import { ZQMapPosition } from './../lib/position'
-import { useStore } from './../lib/store'
 import type L from 'leaflet'
 import { ZQMapOverlay } from '../lib/overlay'
 import { BaseRule } from './base'
@@ -22,8 +21,7 @@ export abstract class LeafletRule extends BaseRule {
     }
     async init(): Promise<void> {
         this.window.document.body.classList.add('zhiqiong-rule-leaflet')
-        const store = useStore()
-        const overlays = store.overlays as ZQMapOverlay<unknown>[]
+        const overlays = this.app.matchedOverlays as ZQMapOverlay<unknown>[]
         ;[this.L, this.map] = await Promise.all([this.findLeaflet(), this.findMap()])
         const L = this.L
         const map = this.map
@@ -53,7 +51,7 @@ export abstract class LeafletRule extends BaseRule {
         let tmpDragging = -1
         let tmpMousePos = [0, 0]
         map.addEventListener('mousedown', (e) => {
-            if (!store.connected) return
+            if (!this.app.ws) return
             tmpDragging = Date.now()
             tmpMousePos = [e.originalEvent.clientX, e.originalEvent.clientY]
         })
@@ -62,7 +60,7 @@ export abstract class LeafletRule extends BaseRule {
             tmpMousePos = [e.touches[0].clientX, e.touches[0].clientY]
         })
         map.addEventListener('mouseup', () => {
-            if (!store.connected) return
+            if (!this.app.ws) return
             tmpDragging = -1
         })
         this.dom.addEventListener('touchend', () => {
@@ -72,7 +70,7 @@ export abstract class LeafletRule extends BaseRule {
             if (tmpDragging > 0 && Date.now() - tmpDragging > 100) {
                 const nowMousePos = [e.originalEvent.clientX, e.originalEvent.clientY]
                 const diff = [Math.abs(nowMousePos[0] - tmpMousePos[0]), Math.abs(nowMousePos[1] - tmpMousePos[1])]
-                if (diff[0] > 20 || diff[1] > 20) store.pinned = false
+                if (diff[0] > 20 || diff[1] > 20) this.app.isPinned = false
             }
         })
         this.dom.addEventListener('touchmove', (e) => {
@@ -80,7 +78,7 @@ export abstract class LeafletRule extends BaseRule {
                 // check pos
                 const nowMousePos = [e.touches[0].clientX, e.touches[0].clientY]
                 const diff = [Math.abs(nowMousePos[0] - tmpMousePos[0]), Math.abs(nowMousePos[1] - tmpMousePos[1])]
-                if (diff[0] > 20 || diff[1] > 20) store.pinned = false
+                if (diff[0] > 20 || diff[1] > 20) this.app.isPinned = false
             }
         })
     }
@@ -99,7 +97,6 @@ export abstract class LeafletRule extends BaseRule {
         this.marker.setLatLng([pos.x, pos.y])
         this.icondom.style.setProperty('--dir', 0 - pos.viewportRotation + 'deg')
         this.icondom.style.setProperty('--rot', 0 - pos.characterRotation + 'deg')
-        const store = useStore()
-        if (store.pinned) this.map.setView([pos.x, pos.y])
+        if (this.app.isPinned) this.map.setView([pos.x, pos.y])
     }
 }

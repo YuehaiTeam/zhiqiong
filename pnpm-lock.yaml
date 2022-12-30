@@ -15,6 +15,7 @@ specifiers:
   prettier: ^2.8.1
   sass: ^1.57.1
   typescript: ^4.9.4
+  vant: ^4.0.6
   vite: ^4.0.3
   vite-plugin-monkey: ^2.10.2
   vue: ^3.2.45
@@ -23,6 +24,7 @@ specifiers:
 dependencies:
   '@types/leaflet': 1.9.0
   pinia: 2.0.28_prq2uz4lho2pwp6irk4cfkrxwu
+  vant: 4.0.6_vue@3.2.45
   vue: 3.2.45
 
 devDependencies:
@@ -469,6 +471,14 @@ packages:
       '@typescript-eslint/types': 5.47.1
       eslint-visitor-keys: 3.3.0
     dev: true
+
+  /@vant/popperjs/1.3.0:
+    resolution: {integrity: sha512-hB+czUG+aHtjhaEmCJDuXOep0YTZjdlRR+4MSmIFnkCQIxJaXLQdSsR90XWvAI2yvKUI7TCGqR8pQg2RtvkMHw==}
+    dev: false
+
+  /@vant/use/1.4.3:
+    resolution: {integrity: sha512-rSnETN7P9qT1WbItMpQxBqe3cHeK2ZFYp1sCxWUXaTeI71TqA8sOdzC36ledZ36NQgFNTch9fsRPYOkrCgZfQA==}
+    dev: false
 
   /@vitejs/plugin-vue/4.0.0_vite@4.0.3+vue@3.2.45:
     resolution: {integrity: sha512-e0X4jErIxAB5oLtDqbHvHpJe/uWNkdpYV83AOG2xo2tEVSzCzewgJMtREZM30wXnM5ls90hxiOtAuVU6H5JgbA==}
@@ -1770,6 +1780,16 @@ packages:
   /util-deprecate/1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
     dev: true
+
+  /vant/4.0.6_vue@3.2.45:
+    resolution: {integrity: sha512-bgO08pzQmfD1MjkwZypy5N/g9CZlQ7XH5Cvse/7HHCJ1zIvF0OSoGWNHyQm7kFJQkuxER3QnN6r4XkeCDfYDgw==}
+    peerDependencies:
+      vue: ^3.0.0
+    dependencies:
+      '@vant/popperjs': 1.3.0
+      '@vant/use': 1.4.3
+      vue: 3.2.45
+    dev: false
 
   /vite-plugin-monkey/2.10.2_vite@4.0.3:
     resolution: {integrity: sha512-TNKEpUHlNNntwjUvBbQezDJdizXigKr2XcIJdjVFVb+VYs0Z6AR9Q3cXNiPGZzpS1oDjvz39k6zO8HhFV3MsgQ==}

@@ -17,9 +17,8 @@ export class KongyingV2Rule extends LeafletRule {
             return false
         },
     ]
-    findMap(): Promise<Map> {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (<any>this.window).map
+    async findMap(): Promise<Map> {
+        return this.window.map
     }
 }
 function installAntiCSPMode() {

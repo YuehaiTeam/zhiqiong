@@ -22,17 +22,21 @@ export default defineConfig((ctx) => {
                     icon: 'https://webstatic.mihoyo.com/ys/app/interactive-map/mapicon.png',
                     namespace: 'yuehaiteam/zhiqiong-next',
                     match: [
+                        'https://cocogoat.work/*',
                         'https://webstatic.mihoyo.com/ys/app/interactive-map/*',
                         'https://act.hoyolab.com/ys/app/interactive-map/*',
-                        'https://yuanshen.site/index*',
-                        'https://yuanshen.site/*.dll*',
+                        'https://v3.yuanshen.site/*',
                         'https://static-web.ghzs.com/cspage_pro/yuanshenMap*',
                     ],
                     grant: ['unsafeWindow'],
                 },
                 build: {
                     externalGlobals: {
-                        vue: cdn.bytecdntp('Vue', 'dist/vue.global.prod.js'),
+                        vue: cdn.baomitu('Vue', 'dist/vue.global.prod.js'),
+                        vant: cdn.baomitu('vant', 'vant.min.js'),
+                    },
+                    externalResource: {
+                        'vant/lib/index.css': cdn.baomitu('vant', 'vant.min.css'),
                     },
                 },
             }),

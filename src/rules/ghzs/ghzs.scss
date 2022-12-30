@@ -1,0 +1,75 @@
+.zhiqiong-rule-ghzs {
+    .fixmodel.bottom,
+    .gonggao.visi-div,
+    .share.visi-div,
+    .fixmodel.posi-left.top-left1 {
+        display: none;
+    }
+    .zhiqiong-actions {
+        bottom: 68px;
+        margin-left: -16px;
+        right: -44px;
+        left: auto;
+        .mhy-map__action-btn {
+            height: 35px;
+            background-color: rgba(29, 40, 57, 0.8);
+            box-sizing: border-box;
+            border: 0.01rem solid rgba(255, 255, 255, 0.05);
+            border-radius: 0.08rem;
+        }
+    }
+    .filter-btn.visi-div {
+        width: 40px !important;
+        margin-right: -12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .filter-popup .visi-div::after {
+        border-radius: 0 !important;
+    }
+
+    @media screen and (max-width: 450px) {
+        .filter-popup {
+            zoom: 0.8;
+        }
+        .fixmodel.posi-left.top-left {
+            display: none;
+        }
+        .area-item {
+            height: 0.95rem !important;
+        }
+    }
+    @media screen and (max-height: 450px) {
+        .filter-popup {
+            zoom: 0.8;
+        }
+        .fixmodel.posi-left.top-left {
+            display: none;
+        }
+        .area-item {
+            height: 0.95rem !important;
+        }
+    }
+    @media screen and (max-height: 840px) {
+        .areafixmodel-container.areafixmodel {
+            top: 128px !important;
+        }
+        .zone-btn {
+            display: none;
+        }
+        .fixmodel.top {
+            top: 0 !important;
+            right: 0 !important;
+        }
+        .area-item {
+            height: 0.95rem !important;
+        }
+        .map-btn.visi-box {
+            margin-right: 0;
+            border-radius: 0;
+            border: 0;
+        }
+    }
+}

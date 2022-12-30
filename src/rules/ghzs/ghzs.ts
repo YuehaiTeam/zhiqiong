@@ -1,6 +1,7 @@
 import { ZQMapPosition } from '../../lib/position'
 import { runInitInterval } from '../base'
 import { LeafletRule } from '../leaflet'
+import './ghzs.scss'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GhzsAny = any

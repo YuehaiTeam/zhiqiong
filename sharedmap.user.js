@@ -1932,9 +1932,9 @@ function _zhiqiong_main() {
                 document.body.appendChild(mhyuldiv);
                 injectHtml();
                 runInitInterval(() => {
-                    vue = this.window.document.querySelector('#q-app')?.__vue_app__
-                    const root = vue._container?._vnode?.component
-                    map = root?.subTree?.component?.subTree?.component?.ctx?.map
+                    vue = this.window.document.querySelector('#q-app')?.__vue_app__;
+                    const root = vue._container?._vnode?.component;
+                    map = root?.subTree?.component?.subTree?.component?.ctx?.map;
                     if (!vue || !map || (!window.Peer && !uWindow.Peer)) return false;
                     init();
                     return true;
@@ -2085,4 +2085,8 @@ function _zhiqiong_main() {
         uWindow._zq_load = load;
     }
 }
-_zhiqiong_main();
+if (location.href.startsWith('https://yuanshen.site/index.html') && navigator.userAgent.includes('zhiqiong-uwp')) {
+    location.replace('https://v3.yuanshen.site');
+} else {
+    _zhiqiong_main();
+}

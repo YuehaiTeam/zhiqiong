@@ -15,7 +15,6 @@ export class KongyingV3Rule extends LeafletRule {
             this.vue = (<KongyingAny>this.window.document.querySelector('#q-app'))?.__vue_app__
             this.root = this.vue._container?._vnode?.component
             this.map = this.root?.subTree?.component?.subTree?.component?.ctx?.map
-            console.log(this.map)
             return !!(this.vue && this.root && this.map)
         })
         await super.init()

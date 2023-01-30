@@ -7,4 +7,14 @@
         left: 6px;
         bottom: 26px;
     }
+    .footer a:last-child {
+        display: none;
+    }
+    .area_selector_fold {
+        zoom: 0.8;
+    }
+
+    .extra_btn.row {
+        zoom: 0.8;
+    }
 }

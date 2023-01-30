@@ -1,3 +1,6 @@
+/**
+ * 酒馆v2已经不再维护，故先不适配
+ */
 import { Map } from 'leaflet'
 import { LeafletRule } from '../leaflet'
 const hasCsp = !!(

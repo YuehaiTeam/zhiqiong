@@ -11,9 +11,10 @@
 // @match       https://act.hoyolab.com/ys/app/interactive-map/*
 // @match       https://yuanshen.site/index*
 // @match       https://yuanshen.site/*.dll*
+// @match       https://v3.yuanshen.site/*
 // @match       https://static-web.ghzs.com/cspage_pro/yuanshenMap*
 // @grant       unsafeWindow
-// @version     1.3.0.6
+// @version     1.3.1.0
 // @author      YuehaiTeam
 // @description 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
 // @description:zh-CN 让你的原神地图能定位，可共享(支持米游社大地图、空荧酒馆、光环助手)
@@ -1366,6 +1367,24 @@ function _zhiqiong_main() {
     margin-bottom: 10px;
     zoom: 0.7;
 }
+
+.v3-yuanshen-site .switch_list {
+    margin-left: 40px;
+}
+.v3-yuanshen-site .zhiqiong-actions {
+    z-index: 2000;
+    left: 6px;
+    bottom: 26px;
+}
+.v3-yuanshen-site .footer a:last-child {
+    display: none;
+}
+.v3-yuanshen-site .area_selector_fold {
+    zoom: 0.8;
+}
+.v3-yuanshen-site .extra_btn.row {
+    zoom: 0.8;
+}
 `;
     const insertStyle = () => {
         if (uWindow._zhiqiong_frame) return;
@@ -1593,6 +1612,18 @@ function _zhiqiong_main() {
             const unWrappedPos = map.unproject([x / zoomfactor, y / zoomfactor]);
             pos[0] = unWrappedPos.lat;
             pos[1] = unWrappedPos.lng;
+            COCOGOAT_USER_MARKER.setLatLng(pos);
+            COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
+            COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
+            if (isPinned) map.setView(pos);
+            sharedMap.onmap([...apos, dir, rot, posobj, site]);
+        } else if (site === 'v3.yuanshen.site') {
+            const apos = [];
+            apos[0] = (pos[0] + 5890) / 2;
+            apos[1] = (pos[1] - 2285) / 2;
+            pos.reverse();
+            pos[0] = pos[0] / 1.5;
+            pos[1] = pos[1] / 1.5;
             COCOGOAT_USER_MARKER.setLatLng(pos);
             COCOGOAT_USER_MARKER._icon.style.setProperty('--dir', 0 - dir + 'deg');
             COCOGOAT_USER_MARKER._icon.style.setProperty('--rot', 0 - rot + 'deg');
@@ -1878,6 +1909,33 @@ function _zhiqiong_main() {
                 runInitInterval(() => {
                     map = uWindow.map;
                     if (!map || (!window.Peer && !uWindow.Peer)) return false;
+                    init();
+                    return true;
+                });
+            })();
+        } else if (site === 'v3.yuanshen.site') {
+            console.log('Zhiqiong: ghzs.com');
+            insertStyle();
+            (async function () {
+                document.body.appendChild(document.createElement('script')).src = C_PEER_JS;
+                document.body.appendChild(document.createElement('script')).src = C_QRCO_JS;
+                document.body.appendChild(document.createElement('script')).src = C_GLBX_JS;
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = C_GLBX_CSS;
+                document.head.appendChild(link);
+                const mysMapUtil = await F_MAP_TPL();
+                const mhyuldiv = document.createElement('section');
+                mhyuldiv.innerHTML = mysMapUtil;
+                mhyuldiv.style.display = 'none';
+                mhyuldiv.id = 'zhiqiong-mysmap-util';
+                document.body.appendChild(mhyuldiv);
+                injectHtml();
+                runInitInterval(() => {
+                    vue = this.window.document.querySelector('#q-app')?.__vue_app__
+                    const root = vue._container?._vnode?.component
+                    map = root?.subTree?.component?.subTree?.component?.ctx?.map
+                    if (!vue || !map || (!window.Peer && !uWindow.Peer)) return false;
                     init();
                     return true;
                 });

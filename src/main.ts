@@ -9,6 +9,11 @@ declare global {
         $map: ZhiqiongApp
         L: typeof L
         map: L.Map
+        chrome: {
+            webview: {
+                postMessage: (message: unknown) => void
+            }
+        }
     }
 }
 

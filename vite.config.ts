@@ -34,6 +34,7 @@ export default defineConfig((ctx) => {
                     externalGlobals: {
                         vue: cdn.baomitu('Vue', 'dist/vue.global.prod.js'),
                         vant: cdn.baomitu('vant', 'vant.min.js'),
+                        eventemitter3: cdn.baomitu('eventemitter3', 'index.min.js'),
                     },
                     externalResource: {
                         'vant/lib/index.css': cdn.baomitu('vant', 'vant.min.css'),
